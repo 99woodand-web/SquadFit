@@ -8,6 +8,9 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
 
+    env:
+      JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,20 +22,14 @@ jobs:
 
       - name: Force system Python to 3.10
         run: |
-          echo "=== System Python before ==="
           /usr/bin/python3 --version
-          # ubuntu-22.04 has python3.10 at /usr/bin/python3.10
           if [ -f /usr/bin/python3.10 ]; then
             sudo ln -sf /usr/bin/python3.10 /usr/bin/python3
-            echo "Replaced /usr/bin/python3 with python3.10"
           else
-            echo "Installing python3.10..."
             sudo apt-get install -y python3.10 python3.10-dev
             sudo ln -sf /usr/bin/python3.10 /usr/bin/python3
           fi
-          echo "=== System Python after ==="
           /usr/bin/python3 --version
-          python3 --version
 
       - name: Install Buildozer
         run: |
