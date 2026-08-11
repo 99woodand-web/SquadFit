@@ -20,14 +20,13 @@ version = 0.1.0
 # PINNED versions — these are tested together
 # Kivy 2.2.0 has pre-built Android wheels (2.3.x does not)
 # Cython 0.29.33 is required by buildozer recipes
-requirements = python3,kivy==2.2.0,kivymd==1.1.1
+requirements = python3,kivy==2.2.0,kivymd==1.1.1,Cython==3.0.11
 
 # -- Android Configuration ----------------------------------
 android.permissions = INTERNET, VIBRATE, ACCESS_NETWORK_STATE
 android.api = 31
 android.minapi = 21
 android.ndk = 25b
-android.sdk = 31
 android.accept_sdk_license = True
 android.archs = armeabi-v7a
 android.release_artifact = apk
@@ -41,7 +40,7 @@ android.window_soft_input_mode = adjustResize
 
 # -- Build Options ------------------------------------------
 android.enable_androidx = True
-android.bootstrap = sdl2
+p4a.bootstrap = sdl2
 
 # -- Presplash ----------------------------------------------
 presplash_color = #121212
