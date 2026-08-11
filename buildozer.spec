@@ -17,17 +17,19 @@ source.include_exts = py,png,jpg,jpeg,kv,ttf,txt,json
 version = 0.1.0
 
 # -- Requirements -------------------------------------------
-# Minimal requirements - no C-extension packages
-requirements = python3,kivy,kivymd
+# PINNED versions — these are tested together
+# Kivy 2.2.0 has pre-built Android wheels (2.3.x does not)
+# Cython 0.29.33 is required by buildozer recipes
+requirements = python3==3.10.12,kivy==2.2.0,kivymd==1.1.1,Cython==0.29.33
 
 # -- Android Configuration ----------------------------------
 android.permissions = INTERNET, VIBRATE, ACCESS_NETWORK_STATE
 android.api = 31
-android.minapi = 24
+android.minapi = 21
 android.ndk = 25b
 android.sdk = 31
 android.accept_sdk_license = True
-android.archs = arm64-v8a
+android.archs = armeabi-v7a
 android.release_artifact = apk
 
 # -- Orientation --------------------------------------------

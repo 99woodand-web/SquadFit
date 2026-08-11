@@ -1,11 +1,13 @@
 # Squad Fit - Python Dependencies
 # ==========================================
+# PINNED versions for Android compatibility
+# These are tested together — do not change individually
 
-# Core Framework (pinned for Android compatibility)
-kivy==2.1.0
+# Core Framework
+kivy==2.2.0
 kivymd==1.1.1
+Cython==0.29.33
 
-# Optional: For future features
-# pillow>=9.0.0       # Removed - causes native build issues on Android
-# matplotlib>=3.5.0   # For advanced charts
-# numpy>=1.21.0       # For calculations
+# Note: These are the versions used by buildozer for Android builds
+# Do NOT use kivy 2.3.x — it has no pre-built Android wheels
+# Do NOT use Cython 3.x — it's incompatible with buildozer recipes
