@@ -12,32 +12,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Force system Python to 3.10
-        run: |
-          PY310=$(which python3)
-          echo "Python at: $PY310"
-          python3 --version
-          # Override system python3 and python
-          sudo update-alternatives --install /usr/bin/python3 python3 "$PY310" 100
-          sudo update-alternatives --install /usr/bin/python python "$PY310" 100
-          sudo update-alternatives --set python3 "$PY310"
-          sudo update-alternatives --set python "$PY310"
-          # Add to front of PATH
-          PY310_DIR=$(dirname "$PY310")
-          echo "$PY310_DIR" >> $GITHUB_PATH
-          # Verify
-          which python3
-          python3 --version
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses-dev libtinfo-dev cmake libffi-dev libssl-dev automake autopoint gettext
+
+      - name: Verify system Python 3.10
+        run: |
+          # ubuntu-22.04 ships with Python 3.10 — use it directly
+          python3 --version
+          python --version || true
+          which python3
 
       - name: Install Buildozer
         run: |
