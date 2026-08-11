@@ -12,21 +12,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses-dev libtinfo-dev cmake libffi-dev libssl-dev automake autopoint gettext
-
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Force Python 3.11 as system default
+        run: |
+          PY311=$(which python3)
+          echo "Python 3.11 at: $PY311"
+          python3 --version
+          # Force every subprocess to use our Python 3.11
+          sudo update-alternatives --install /usr/bin/python3 python3 "$PY311" 100
+          sudo update-alternatives --set python3 "$PY311"
+          # Also override any python3.X that might be found
+          PY311_DIR=$(dirname "$PY311")
+          echo "$PY311_DIR" >> $GITHUB_PATH
+          echo "PYTHON=$PY311" >> $GITHUB_ENV
+          python3 --version
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses-dev libtinfo-dev cmake libffi-dev libssl-dev automake autopoint gettext
 
       - name: Install Buildozer
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
           pip install cython==0.29.37
           pip install buildozer==1.5.0
+          python3 --version
+          which python3
+          which buildozer
 
       - name: Accept Android SDK Licenses
         run: |
