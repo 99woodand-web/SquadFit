@@ -17,10 +17,10 @@ source.include_exts = py,png,jpg,jpeg,kv,ttf,txt,json
 version = 0.1.0
 
 # -- Requirements -------------------------------------------
-# PINNED versions — these are tested together
-# Kivy 2.2.0 has pre-built Android wheels (2.3.x does not)
-# Cython 0.29.33 is required by buildozer recipes
-requirements = python3,kivy==2.2.0,kivymd==1.1.1,Cython==3.0.11
+# DO NOT pin Cython here — it conflicts with the target Python.
+# p4a manages Cython internally via its host build toolchain.
+# Kivy 2.2.0 is the last version with reliable Android wheels.
+requirements = python3,kivy==2.2.0,kivymd==1.1.1
 
 # -- Android Configuration ----------------------------------
 android.permissions = INTERNET, VIBRATE, ACCESS_NETWORK_STATE
