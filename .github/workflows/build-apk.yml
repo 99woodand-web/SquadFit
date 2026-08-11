@@ -17,24 +17,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses-dev libtinfo-dev cmake libffi-dev libssl-dev automake autopoint gettext
 
-      - name: Force /usr/bin/python3 to Python 3.10
+      - name: Force system Python to 3.10
         run: |
-          echo "=== Before ==="
-          /usr/bin/python3 --version || true
-          ls -la /usr/bin/python3* || true
-
-          # ubuntu-22.04 ships with python3.10 — find it
+          echo "=== System Python before ==="
+          /usr/bin/python3 --version
+          # ubuntu-22.04 has python3.10 at /usr/bin/python3.10
           if [ -f /usr/bin/python3.10 ]; then
-            echo "Found system python3.10"
-            # CRITICAL: replace the symlink so p4a, pip, and all subprocesses see 3.10
             sudo ln -sf /usr/bin/python3.10 /usr/bin/python3
+            echo "Replaced /usr/bin/python3 with python3.10"
           else
-            echo "python3.10 not found, installing..."
-            sudo apt-get install -y python3.10 python3.10-venv python3.10-dev
+            echo "Installing python3.10..."
+            sudo apt-get install -y python3.10 python3.10-dev
             sudo ln -sf /usr/bin/python3.10 /usr/bin/python3
           fi
-
-          echo "=== After ==="
+          echo "=== System Python after ==="
           /usr/bin/python3 --version
           python3 --version
 
@@ -43,9 +39,6 @@ jobs:
           python3 -m pip install --upgrade pip setuptools wheel
           pip install cython==0.29.37
           pip install buildozer==1.5.0
-          echo "Python: $(python3 --version)"
-          echo "python3 location: $(which python3)"
-          echo "/usr/bin/python3 version: $(/usr/bin/python3 --version)"
 
       - name: Accept Android SDK Licenses
         run: |

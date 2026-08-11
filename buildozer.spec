@@ -20,7 +20,7 @@ version = 0.1.0
 # DO NOT pin Cython here — it conflicts with the target Python.
 # p4a manages Cython internally via its host build toolchain.
 # Kivy 2.2.0 is the last version with reliable Android wheels.
-requirements = python3==3.10.12,kivy==2.2.0,kivymd==1.1.1
+requirements = python3==3.10.11,hostpython3==3.10.11,kivy==2.2.0,kivymd==1.1.1
 
 # -- Android Configuration ----------------------------------
 android.permissions = INTERNET, VIBRATE, ACCESS_NETWORK_STATE
