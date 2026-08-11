@@ -35,7 +35,7 @@ android.release_artifact = apk
 orientation = portrait
 
 # -- Window -------------------------------------------------
-fullscreen = auto
+fullscreen = 1
 android.window_soft_input_mode = adjustResize
 
 # -- Build Options ------------------------------------------
