@@ -1,0 +1,346 @@
+# calendar_view.kv - All buttons with transparent bg + rounded canvas
+#:import animations animations
+<CalendarViewScreen>:
+    orientation: 'vertical'
+    padding: dp(16)
+    spacing: dp(12)
+    canvas.before:
+        Color:
+            rgba: app.canvas_bg
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        # Subtle texture overlay
+        Color:
+            rgba: 1, 1, 1, 0.15
+        Rectangle:
+            source: 'assets/app_bg.jpeg'
+            pos: self.pos
+            size: self.size
+
+    # Header
+    BoxLayout:
+        size_hint_y: None
+        height: dp(48)
+        spacing: dp(10)
+
+        Label:
+            text: "SQUAD FIT"
+            font_size: '20sp'
+            bold: True
+            color: app.accent_color
+            halign: 'left'
+            text_size: self.size
+            valign: 'middle'
+
+        Widget:
+            size_hint_x: 0.5
+
+        # Progress button
+        MDIconButton:
+            icon: "chart-line"
+            icon_size: '22sp'
+            theme_text_color: "Custom"
+            text_color: app.accent_color
+            size_hint_x: None
+            width: dp(48)
+            on_release: root.go_to_progress()
+
+        Image:
+            id: btn_cog
+            source: 'assets/cog.png'
+            size_hint: None, None
+            size: dp(28), dp(28)
+            fit_mode: "contain"
+            on_touch_down: if self.collide_point(*args[1].pos): root.open_settings_popup()
+
+    # 7-Day Strip
+    BoxLayout:
+        size_hint_y: None
+        height: dp(52)
+        spacing: dp(6)
+
+        ToggleButton:
+            id: btn_mon
+            text: "M"
+            font_size: '13sp'
+            bold: True
+            group: 'calendar_days'
+            background_normal: ''
+            background_down: ''
+            background_color: 0, 0, 0, 0
+            color: (0.07, 0.07, 0.07, 1) if self.state == 'down' else (0.7, 0.7, 0.7, 1)
+            canvas.before:
+                Color:
+                    rgba: app.accent_color if self.state == 'down' else app.card_bg
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(12)]
+            on_press: root.load_selected_day_schedule(0)
+
+        ToggleButton:
+            id: btn_tue
+            text: "T"
+            font_size: '13sp'
+            bold: True
+            group: 'calendar_days'
+            background_normal: ''
+            background_down: ''
+            background_color: 0, 0, 0, 0
+            color: (0.07, 0.07, 0.07, 1) if self.state == 'down' else (0.7, 0.7, 0.7, 1)
+            canvas.before:
+                Color:
+                    rgba: app.accent_color if self.state == 'down' else app.card_bg
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(12)]
+            on_press: root.load_selected_day_schedule(1)
+
+        ToggleButton:
+            id: btn_wed
+            text: "W"
+            font_size: '13sp'
+            bold: True
+            group: 'calendar_days'
+            background_normal: ''
+            background_down: ''
+            background_color: 0, 0, 0, 0
+            color: (0.07, 0.07, 0.07, 1) if self.state == 'down' else (0.7, 0.7, 0.7, 1)
+            canvas.before:
+                Color:
+                    rgba: app.accent_color if self.state == 'down' else app.card_bg
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(12)]
+            on_press: root.load_selected_day_schedule(2)
+
+        ToggleButton:
+            id: btn_thu
+            text: "T"
+            font_size: '13sp'
+            bold: True
+            group: 'calendar_days'
+            background_normal: ''
+            background_down: ''
+            background_color: 0, 0, 0, 0
+            color: (0.07, 0.07, 0.07, 1) if self.state == 'down' else (0.7, 0.7, 0.7, 1)
+            canvas.before:
+                Color:
+                    rgba: app.accent_color if self.state == 'down' else app.card_bg
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(12)]
+            on_press: root.load_selected_day_schedule(3)
+
+        ToggleButton:
+            id: btn_fri
+            text: "F"
+            font_size: '13sp'
+            bold: True
+            group: 'calendar_days'
+            background_normal: ''
+            background_down: ''
+            background_color: 0, 0, 0, 0
+            color: (0.07, 0.07, 0.07, 1) if self.state == 'down' else (0.7, 0.7, 0.7, 1)
+            canvas.before:
+                Color:
+                    rgba: app.accent_color if self.state == 'down' else app.card_bg
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(12)]
+            on_press: root.load_selected_day_schedule(4)
+
+        ToggleButton:
+            id: btn_sat
+            text: "S"
+            font_size: '13sp'
+            bold: True
+            group: 'calendar_days'
+            background_normal: ''
+            background_down: ''
+            background_color: 0, 0, 0, 0
+            color: (0.07, 0.07, 0.07, 1) if self.state == 'down' else (0.7, 0.7, 0.7, 1)
+            canvas.before:
+                Color:
+                    rgba: app.accent_color if self.state == 'down' else app.card_bg
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(12)]
+            on_press: root.load_selected_day_schedule(5)
+
+        ToggleButton:
+            id: btn_sun
+            text: "S"
+            font_size: '13sp'
+            bold: True
+            group: 'calendar_days'
+            background_normal: ''
+            background_down: ''
+            background_color: 0, 0, 0, 0
+            color: (0.07, 0.07, 0.07, 1) if self.state == 'down' else (0.7, 0.7, 0.7, 1)
+            canvas.before:
+                Color:
+                    rgba: app.accent_color if self.state == 'down' else app.card_bg
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(12)]
+            on_press: root.load_selected_day_schedule(6)
+
+    # ═══ MODE TOGGLE: AI Coach vs My Routine ═══
+    BoxLayout:
+        size_hint_y: None
+        height: dp(40)
+        spacing: dp(6)
+
+        Button:
+            id: btn_mode_ai
+            text: "AI COACH"
+            bold: True
+            font_size: '11sp'
+            background_normal: ''
+            background_down: ''
+            background_color: 0, 0, 0, 0
+            color: 0.07, 0.07, 0.07, 1
+            border: (0, 0, 0, 0)
+            on_press: root.set_workout_mode('ai')
+
+        Button:
+            id: btn_mode_routine
+            text: "MY ROUTINE"
+            bold: True
+            font_size: '11sp'
+            background_normal: ''
+            background_down: ''
+            background_color: 0, 0, 0, 0
+            color: 0.6, 0.6, 0.6, 1
+            border: (0, 0, 0, 0)
+            on_press: root.set_workout_mode('routine')
+
+    # Workout Card
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(16)
+        spacing: dp(12)
+        canvas.before:
+            Color:
+                rgba: app.card_bg
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [dp(20)]
+
+        Label:
+            id: lbl_target_split_title
+            text: "TODAY'S WORKOUT"
+            font_size: '11sp'
+            bold: True
+            color: 0.4, 0.4, 0.4, 1
+            size_hint_y: None
+            height: dp(16)
+            halign: 'left'
+            text_size: self.size
+
+        Label:
+            id: lbl_routine_name
+            text: "Heavy Push Intensity"
+            font_size: '20sp'
+            bold: True
+            color: 1, 1, 1, 1
+            size_hint_y: None
+            height: dp(28)
+            halign: 'left'
+            text_size: self.size
+
+        ScrollView:
+            do_scroll_x: False
+            do_scroll_y: True
+            size_hint_y: 1
+
+            Label:
+                id: lbl_routine_exercises_preview
+                text: ""
+                font_size: '14sp'
+                color: 0.7, 0.7, 0.7, 1
+                halign: 'left'
+                valign: 'top'
+                text_size: (self.width, None)
+                size_hint_y: None
+                height: self.texture_size[1]
+
+        # Action buttons
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(48)
+            spacing: dp(10)
+
+            Button:
+                text: "RESCHEDULE"
+                bold: True
+                font_size: '12sp'
+                background_normal: ''
+                background_down: ''
+                background_color: 0, 0, 0, 0
+                color: 0.0, 0.8, 1.0, 1
+                canvas.before:
+                    Color:
+                        rgba: 0.0, 0.8, 1.0, 0.15
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(14)]
+                on_press: animations.button_flash(self); root.activate_quick_shift_mode()
+
+            Button:
+                text: "START WORKOUT"
+                bold: True
+                font_size: '13sp'
+                background_normal: ''
+                background_down: ''
+                background_color: 0, 0, 0, 0
+                color: 0.07, 0.07, 0.07, 1
+                canvas.before:
+                    Color:
+                        rgba: app.accent_color
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(14)]
+                on_press: animations.button_flash(self); root.initiate_active_gym_session()
+
+    # Quick Start button
+    Button:
+        text: "QUICK START - Last Workout"
+        bold: True
+        font_size: '12sp'
+        size_hint_y: None
+        height: dp(40)
+        background_normal: ''
+        background_down: ''
+        background_color: 0, 0, 0, 0
+        color: 0.0, 0.8, 1.0, 1
+        border: (0, 0, 0, 0)
+        canvas.before:
+            Color:
+                rgba: 0.0, 0.8, 1.0, 0.12
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [dp(14)]
+        on_press: animations.button_flash(self); root.quick_start_last_workout()
+
+    # User name
+    Label:
+        id: lbl_user_name
+        text: ""
+        font_size: '12sp'
+        color: 0.3, 0.3, 0.3, 1
+        size_hint_y: None
+        height: dp(20)

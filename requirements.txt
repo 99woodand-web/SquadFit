@@ -1,0 +1,11 @@
+# Squad Fit - Python Dependencies
+# ==========================================
+
+# Core Framework (pinned for Android compatibility)
+kivy==2.1.0
+kivymd==1.1.1
+
+# Optional: For future features
+# pillow>=9.0.0       # Removed - causes native build issues on Android
+# matplotlib>=3.5.0   # For advanced charts
+# numpy>=1.21.0       # For calculations

@@ -1,0 +1,165 @@
+# login_view.kv - Full-screen background image with transparent form
+#:import animations animations
+<LoginScreenView>:
+    orientation: 'vertical'
+    padding: dp(24)
+    spacing: dp(12)
+    canvas.before:
+        # Full-screen background image drawn first
+        Color:
+            rgba: 1, 1, 1, 1
+        Rectangle:
+            source: 'assets/login_bg.jpeg'
+            pos: self.pos
+            size: self.size
+        # Semi-transparent dark overlay on top
+        Color:
+            rgba: 0, 0, 0, 0.25
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    Widget:
+        size_hint_y: 0.5  # Push form to bottom half
+
+    # ───────── BRANDING (tagline only) ─────────
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_y: None
+        height: dp(40)
+        spacing: dp(4)
+
+        Label:
+            text: "Connect. Overload. Compete."
+            font_size: '14sp'
+            color: 1, 1, 1, 0.9
+            halign: 'center'
+
+    # ───────── INPUT CARD ─────────
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(18)
+        spacing: dp(14)
+        size_hint_y: None
+        height: dp(200)
+        canvas.before:
+            Color:
+                rgba: 0, 0, 0, 0.5  # Semi-transparent card
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [dp(20)]
+
+        Label:
+            text: "EMAIL ADDRESS"
+            font_size: '11sp'
+            bold: True
+            color: 0.8, 0.8, 0.8, 1
+            size_hint_y: None
+            height: dp(16)
+            halign: 'left'
+            text_size: self.size
+
+        TextInput:
+            id: txt_email
+            multiline: False
+            write_tab: False
+            font_size: '16sp'
+            padding: [dp(14), dp(12), dp(14), dp(12)]
+            background_color: 0, 0, 0, 0.3
+            foreground_color: 1, 1, 1, 1
+            cursor_color: app.accent_color
+            canvas.before:
+                Color:
+                    rgba: 0.5, 0.5, 0.5, 0.5
+                Line:
+                    rectangle: self.x, self.y, self.width, self.height
+                    width: 1
+                    rounded_rectangle: [self.x, self.y, self.width, self.height, dp(12)]
+
+        Label:
+            text: "PASSWORD"
+            font_size: '11sp'
+            bold: True
+            color: 0.8, 0.8, 0.8, 1
+            size_hint_y: None
+            height: dp(16)
+            halign: 'left'
+            text_size: self.size
+
+        TextInput:
+            id: txt_password
+            password: True
+            multiline: False
+            write_tab: False
+            font_size: '16sp'
+            padding: [dp(14), dp(12), dp(14), dp(12)]
+            background_color: 0, 0, 0, 0.3
+            foreground_color: 1, 1, 1, 1
+            cursor_color: app.accent_color
+            canvas.before:
+                Color:
+                    rgba: 0.5, 0.5, 0.5, 0.5
+                Line:
+                    rectangle: self.x, self.y, self.width, self.height
+                    width: 1
+                    rounded_rectangle: [self.x, self.y, self.width, self.height, dp(12)]
+
+    # ───────── BUTTONS ─────────
+    BoxLayout:
+        orientation: 'vertical'
+        spacing: dp(12)
+        size_hint_y: None
+        height: dp(120)
+
+        # SIGN IN - filled pill
+        Button:
+            text: "SIGN INTO SQUAD"
+            font_size: '16sp'
+            bold: True
+            size_hint_y: None
+            height: dp(50)
+            background_normal: ''
+            background_down: ''
+            background_color: 0, 0, 0, 0
+            color: 0.07, 0.07, 0.07, 1
+            canvas.before:
+                Color:
+                    rgba: app.accent_color
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(25)]
+            on_press: animations.button_flash(self); root.execute_database_sign_in()
+
+        # CREATE ACCOUNT - outlined
+        Button:
+            text: "CREATE NEW ACCOUNT"
+            font_size: '14sp'
+            bold: True
+            size_hint_y: None
+            height: dp(50)
+            background_normal: ''
+            background_down: ''
+            background_color: 0, 0, 0, 0
+            color: 1, 1, 1, 0.9
+            canvas.before:
+                Color:
+                    rgba: 1, 1, 1, 0.3
+                Line:
+                    rectangle: self.x, self.y, self.width, self.height
+                    width: 1.5
+                    rounded_rectangle: [self.x, self.y, self.width, self.height, dp(25)]
+            on_press: animations.button_flash(self); root.execute_database_registration()
+
+    # ───────── STATUS ─────────
+    Label:
+        id: lbl_login_status
+        text: "Enter your credentials to login"
+        font_size: '12sp'
+        color: 0.8, 0.8, 0.8, 0.8
+        size_hint_y: None
+        height: dp(30)
+
+    Widget:
+        size_hint_y: 0.1

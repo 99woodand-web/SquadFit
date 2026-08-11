@@ -1,0 +1,91 @@
+# progress_view.kv - Progress tracking with charts, PRs, and calendar heatmap
+#:import animations animations
+<ProgressScreen>:
+    orientation: 'vertical'
+    padding: dp(16)
+    spacing: dp(12)
+    canvas.before:
+        Color:
+            rgba: app.canvas_bg
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        # Subtle texture overlay
+        Color:
+            rgba: 1, 1, 1, 0.15
+        Rectangle:
+            source: 'assets/app_bg.jpeg'
+            pos: self.pos
+            size: self.size
+
+    # ═══ HEADER ═══
+    BoxLayout:
+        size_hint_y: None
+        height: dp(45)
+        spacing: dp(10)
+
+        MDIconButton:
+            icon: "chevron-left"
+            icon_size: '24sp'
+            theme_text_color: "Custom"
+            text_color: app.accent_color
+            size_hint_x: None
+            width: dp(48)
+            on_release: animations.button_flash(self); root.go_back()
+
+        Label:
+            text: "PROGRESS"
+            font_size: '18sp'
+            bold: True
+            color: app.accent_color
+
+        Widget:
+            size_hint_x: 0.3
+
+    # ═══ TAB SELECTOR ═══
+    BoxLayout:
+        size_hint_y: None
+        height: dp(36)
+        spacing: dp(6)
+
+        MDIconButton:
+            id: tab_charts
+            icon: "chart-line"
+            icon_size: '20sp'
+            theme_text_color: "Custom"
+            text_color: 0.07, 0.07, 0.07, 1
+            md_bg_color: app.accent_color
+            size_hint_x: 0.33
+            on_release: animations.button_flash(self); root.switch_tab('charts')
+
+        MDIconButton:
+            id: tab_prs
+            icon: "trophy"
+            icon_size: '20sp'
+            theme_text_color: "Custom"
+            text_color: app.accent_color
+            md_bg_color: app.card_bg
+            size_hint_x: 0.33
+            on_release: animations.button_flash(self); root.switch_tab('prs')
+
+        MDIconButton:
+            id: tab_calendar
+            icon: "calendar"
+            icon_size: '20sp'
+            theme_text_color: "Custom"
+            text_color: app.accent_color
+            md_bg_color: app.card_bg
+            size_hint_x: 0.33
+            on_release: animations.button_flash(self); root.switch_tab('calendar')
+
+    # ═══ CONTENT AREA ═══
+    ScrollView:
+        do_scroll_x: False
+        do_scroll_y: True
+
+        BoxLayout:
+            id: content_area
+            orientation: 'vertical'
+            size_hint_y: None
+            height: self.minimum_height
+            spacing: dp(10)

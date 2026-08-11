@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Kivy
+*.kv~
+*.bak
+
+# Buildozer
+.bin/
+.buildozer/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# App data (user-specific, don't commit)
+user_profile.json
+user_data.json
+login_state.json
+workout_history.json
+workout_completions.json
+workout_templates.json
+weekly_schedule.json
+theme_settings.json
+calendar_data.json
+crash.log
+
+# Freebuff internal
+.freebuff/
+
+# Old projects (don't include in SquadFit repo)
+*.godot
+*.tscn
+*.gd
+*.uid
+
+# V2 parked features (not part of v1)
+v2_parked/
+
+# Logs
+*.log
+IMPROVEMENT_CHECKLIST.md

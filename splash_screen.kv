@@ -1,0 +1,111 @@
+# splash_screen.kv - Professional splash screen with loading animation
+<SplashScreen>:
+    orientation: 'vertical'
+    canvas.before:
+        Color:
+            rgba: app.canvas_bg
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        # Subtle texture overlay
+        Color:
+            rgba: 1, 1, 1, 0.15
+        Rectangle:
+            source: 'assets/app_bg.jpeg'
+            pos: self.pos
+            size: self.size
+
+    Widget:
+        size_hint_y: 0.35
+
+    # App icon / logo area
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_y: None
+        height: dp(120)
+        spacing: dp(8)
+
+        MDIconButton:
+            icon: "dumbbell"
+            icon_size: '64sp'
+            theme_text_color: "Custom"
+            text_color: app.accent_color
+            pos_hint: {'center_x': 0.5}
+            disabled: True
+
+    # App name
+    Label:
+        text: "SQUAD FIT"
+        font_size: '28sp'
+        bold: True
+        color: app.accent_color
+        size_hint_y: None
+        height: dp(40)
+
+    # Tagline
+    Label:
+        text: "Connect. Overload. Compete."
+        font_size: '14sp'
+        color: 0.6, 0.6, 0.6, 1
+        size_hint_y: None
+        height: dp(24)
+
+    Widget:
+        size_hint_y: 0.2
+
+    # Loading indicator
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_y: None
+        height: dp(60)
+        spacing: dp(12)
+
+        # Animated dots
+        BoxLayout:
+            size_hint_y: None
+            height: dp(20)
+            spacing: dp(8)
+            pos_hint: {'center_x': 0.5}
+
+            Widget:
+                id: dot1
+                size_hint: None, None
+                size: dp(10), dp(10)
+                canvas.before:
+                    Color:
+                        rgba: app.accent_color[0], app.accent_color[1], app.accent_color[2], self.opacity
+                    Ellipse:
+                        pos: self.pos
+                        size: self.size
+
+            Widget:
+                id: dot2
+                size_hint: None, None
+                size: dp(10), dp(10)
+                canvas.before:
+                    Color:
+                        rgba: app.accent_color[0], app.accent_color[1], app.accent_color[2], self.opacity
+                    Ellipse:
+                        pos: self.pos
+                        size: self.size
+
+            Widget:
+                id: dot3
+                size_hint: None, None
+                size: dp(10), dp(10)
+                canvas.before:
+                    Color:
+                        rgba: app.accent_color[0], app.accent_color[1], app.accent_color[2], self.opacity
+                    Ellipse:
+                        pos: self.pos
+                        size: self.size
+
+        Label:
+            text: "Loading..."
+            font_size: '12sp'
+            color: 0.4, 0.4, 0.4, 1
+            size_hint_y: None
+            height: dp(18)
+
+    Widget:
+        size_hint_y: 0.15

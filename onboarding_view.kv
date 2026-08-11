@@ -1,0 +1,461 @@
+# onboarding_view.kv - All buttons with transparent bg + rounded canvas
+#:import animations animations
+<OnboardingScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(20)
+        spacing: dp(12)
+        canvas.before:
+            Color:
+                rgba: app.canvas_bg
+            Rectangle:
+                pos: self.pos
+                size: self.size
+            # Subtle texture overlay
+            Color:
+                rgba: 1, 1, 1, 0.15
+            Rectangle:
+                source: 'assets/app_bg.jpeg'
+                pos: self.pos
+                size: self.size
+
+        ScrollView:
+            do_scroll_x: False
+            do_scroll_y: True
+
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(12)
+
+                # Header
+                BoxLayout:
+                    size_hint_y: None
+                    height: dp(50)
+                    Label:
+                        text: "SETUP YOUR PROFILE"
+                        font_size: '20sp'
+                        bold: True
+                        color: app.accent_color
+
+                # Name Input
+                BoxLayout:
+                    orientation: 'vertical'
+                    padding: dp(15)
+                    spacing: dp(8)
+                    size_hint_y: None
+                    height: dp(75)
+                    canvas.before:
+                        Color:
+                            rgba: app.card_bg
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(12)]
+
+                    Label:
+                        text: "YOUR NAME"
+                        font_size: '11sp'
+                        bold: True
+                        color: 1, 1, 1, 1
+                        size_hint_y: None
+                        height: dp(18)
+
+                    TextInput:
+                        id: txt_name
+                        hint_text: "Enter your name"
+                        multiline: False
+                        font_size: '16sp'
+                        padding: [dp(10), dp(8)]
+                        size_hint_y: None
+                        height: dp(40)
+                        background_color: app.input_bg
+                        foreground_color: 1, 1, 1, 1
+                        cursor_color: app.accent_color
+                        on_text: root.set_name(self.text)
+
+                # Age Slider
+                BoxLayout:
+                    orientation: 'vertical'
+                    padding: dp(15)
+                    spacing: dp(5)
+                    size_hint_y: None
+                    height: dp(70)
+                    canvas.before:
+                        Color:
+                            rgba: app.card_bg
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(12)]
+
+                    Label:
+                        id: lbl_age
+                        text: "AGE: 30 years"
+                        font_size: '14sp'
+                        bold: True
+                        color: 1, 1, 1, 1
+                        size_hint_y: None
+                        height: dp(22)
+
+                    Slider:
+                        id: slider_age
+                        min: 14
+                        max: 80
+                        value: 30
+                        step: 1
+                        size_hint_y: None
+                        height: dp(35)
+                        value_track: True
+                        value_track_color: app.accent_color
+                        cursor_size: [dp(20), dp(20)]
+                        on_value: root.on_age_change(self.value)
+
+                # Weight Slider
+                BoxLayout:
+                    orientation: 'vertical'
+                    padding: dp(15)
+                    spacing: dp(5)
+                    size_hint_y: None
+                    height: dp(70)
+                    canvas.before:
+                        Color:
+                            rgba: app.card_bg
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(12)]
+
+                    Label:
+                        id: lbl_weight
+                        text: "WEIGHT: 75 kg"
+                        font_size: '14sp'
+                        bold: True
+                        color: 1, 1, 1, 1
+                        size_hint_y: None
+                        height: dp(22)
+
+                    Slider:
+                        id: slider_weight
+                        min: 40
+                        max: 150
+                        value: 75
+                        step: 1
+                        size_hint_y: None
+                        height: dp(35)
+                        value_track: True
+                        value_track_color: app.accent_color
+                        cursor_size: [dp(20), dp(20)]
+                        on_value: root.on_weight_change(self.value)
+
+                # Height Slider
+                BoxLayout:
+                    orientation: 'vertical'
+                    padding: dp(15)
+                    spacing: dp(5)
+                    size_hint_y: None
+                    height: dp(70)
+                    canvas.before:
+                        Color:
+                            rgba: app.card_bg
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(12)]
+
+                    Label:
+                        id: lbl_height
+                        text: "HEIGHT: 175 cm"
+                        font_size: '14sp'
+                        bold: True
+                        color: 1, 1, 1, 1
+                        size_hint_y: None
+                        height: dp(22)
+
+                    Slider:
+                        id: slider_height
+                        min: 140
+                        max: 220
+                        value: 175
+                        step: 1
+                        size_hint_y: None
+                        height: dp(35)
+                        value_track: True
+                        value_track_color: app.accent_color
+                        cursor_size: [dp(20), dp(20)]
+                        on_value: root.on_height_change(self.value)
+
+                # Gender Selection
+                BoxLayout:
+                    orientation: 'vertical'
+                    padding: dp(15)
+                    spacing: dp(8)
+                    size_hint_y: None
+                    height: dp(85)
+                    canvas.before:
+                        Color:
+                            rgba: app.card_bg
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(12)]
+
+                    Label:
+                        text: "GENDER"
+                        font_size: '11sp'
+                        bold: True
+                        color: 1, 1, 1, 1
+                        size_hint_y: None
+                        height: dp(18)
+
+                    BoxLayout:
+                        spacing: dp(10)
+                        size_hint_y: None
+                        height: dp(40)
+
+                        Button:
+                            text: "MALE"
+                            bold: True
+                            background_normal: ''
+                            background_down: ''
+                            background_color: 0, 0, 0, 0
+                            color: (0.07, 0.07, 0.07, 1) if root.user_gender == 'male' else (1, 1, 1, 1)
+                            canvas.before:
+                                Color:
+                                    rgba: app.accent_color if root.user_gender == 'male' else (0.18, 0.18, 0.18, 1)
+                                RoundedRectangle:
+                                    pos: self.pos
+                                    size: self.size
+                                    radius: [dp(14)]
+                            on_press: animations.button_flash(self); root.set_gender('male')
+
+                        Button:
+                            text: "FEMALE"
+                            bold: True
+                            background_normal: ''
+                            background_down: ''
+                            background_color: 0, 0, 0, 0
+                            color: (0.07, 0.07, 0.07, 1) if root.user_gender == 'female' else (1, 1, 1, 1)
+                            canvas.before:
+                                Color:
+                                    rgba: app.accent_color if root.user_gender == 'female' else (0.18, 0.18, 0.18, 1)
+                                RoundedRectangle:
+                                    pos: self.pos
+                                    size: self.size
+                                    radius: [dp(14)]
+                            on_press: animations.button_flash(self); root.set_gender('female')
+
+                # Fitness Goal
+                BoxLayout:
+                    orientation: 'vertical'
+                    padding: dp(15)
+                    spacing: dp(6)
+                    size_hint_y: None
+                    height: dp(155)
+                    canvas.before:
+                        Color:
+                            rgba: app.card_bg
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(12)]
+
+                    Label:
+                        text: "YOUR GOAL"
+                        font_size: '11sp'
+                        bold: True
+                        color: 1, 1, 1, 1
+                        size_hint_y: None
+                        height: dp(18)
+
+                    Button:
+                        text: "BUILD MUSCLE"
+                        bold: True
+                        size_hint_y: None
+                        height: dp(30)
+                        background_normal: ''
+                        background_down: ''
+                        background_color: 0, 0, 0, 0
+                        color: (0.07, 0.07, 0.07, 1) if root.user_goal == 'build_muscle' else (1, 1, 1, 1)
+                        canvas.before:
+                            Color:
+                                rgba: app.accent_color if root.user_goal == 'build_muscle' else (0.18, 0.18, 0.18, 1)
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(14)]
+                        on_press: animations.button_flash(self); root.set_goal('build_muscle')
+
+                    Button:
+                        text: "LOSE WEIGHT"
+                        bold: True
+                        size_hint_y: None
+                        height: dp(30)
+                        background_normal: ''
+                        background_down: ''
+                        background_color: 0, 0, 0, 0
+                        color: (0.07, 0.07, 0.07, 1) if root.user_goal == 'lose_weight' else (1, 1, 1, 1)
+                        canvas.before:
+                            Color:
+                                rgba: app.accent_color if root.user_goal == 'lose_weight' else (0.18, 0.18, 0.18, 1)
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(14)]
+                        on_press: animations.button_flash(self); root.set_goal('lose_weight')
+
+                    Button:
+                        text: "GET STRONGER"
+                        bold: True
+                        size_hint_y: None
+                        height: dp(30)
+                        background_normal: ''
+                        background_down: ''
+                        background_color: 0, 0, 0, 0
+                        color: (0.07, 0.07, 0.07, 1) if root.user_goal == 'get_stronger' else (1, 1, 1, 1)
+                        canvas.before:
+                            Color:
+                                rgba: app.accent_color if root.user_goal == 'get_stronger' else (0.18, 0.18, 0.18, 1)
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(14)]
+                        on_press: animations.button_flash(self); root.set_goal('get_stronger')
+
+                    Button:
+                        text: "GENERAL FITNESS"
+                        bold: True
+                        size_hint_y: None
+                        height: dp(30)
+                        background_normal: ''
+                        background_down: ''
+                        background_color: 0, 0, 0, 0
+                        color: (0.07, 0.07, 0.07, 1) if root.user_goal == 'general_fitness' else (1, 1, 1, 1)
+                        canvas.before:
+                            Color:
+                                rgba: app.accent_color if root.user_goal == 'general_fitness' else (0.18, 0.18, 0.18, 1)
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(14)]
+                        on_press: animations.button_flash(self); root.set_goal('general_fitness')
+
+                # Training Environment
+                BoxLayout:
+                    orientation: 'vertical'
+                    padding: dp(15)
+                    spacing: dp(6)
+                    size_hint_y: None
+                    height: dp(180)
+                    canvas.before:
+                        Color:
+                            rgba: app.card_bg
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(12)]
+
+                    Label:
+                        text: "TRAINING ENVIRONMENT"
+                        font_size: '11sp'
+                        bold: True
+                        color: 1, 1, 1, 1
+                        size_hint_y: None
+                        height: dp(18)
+
+                    Button:
+                        text: "COMMERCIAL GYM"
+                        bold: True
+                        size_hint_y: None
+                        height: dp(30)
+                        background_normal: ''
+                        background_down: ''
+                        background_color: 0, 0, 0, 0
+                        color: (0.07, 0.07, 0.07, 1) if root.user_environment == 'commercial' else (1, 1, 1, 1)
+                        canvas.before:
+                            Color:
+                                rgba: app.accent_color if root.user_environment == 'commercial' else (0.18, 0.18, 0.18, 1)
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(14)]
+                        on_press: animations.button_flash(self); root.set_environment('commercial')
+
+                    Button:
+                        text: "HOME GYM"
+                        bold: True
+                        size_hint_y: None
+                        height: dp(30)
+                        background_normal: ''
+                        background_down: ''
+                        background_color: 0, 0, 0, 0
+                        color: (0.07, 0.07, 0.07, 1) if root.user_environment == 'home_gym' else (1, 1, 1, 1)
+                        canvas.before:
+                            Color:
+                                rgba: app.accent_color if root.user_environment == 'home_gym' else (0.18, 0.18, 0.18, 1)
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(14)]
+                        on_press: animations.button_flash(self); root.set_environment('home_gym')
+
+                    Button:
+                        text: "OUTDOOR / CARDIO"
+                        bold: True
+                        size_hint_y: None
+                        height: dp(30)
+                        background_normal: ''
+                        background_down: ''
+                        background_color: 0, 0, 0, 0
+                        color: (0.07, 0.07, 0.07, 1) if root.user_environment == 'cardio_only' else (1, 1, 1, 1)
+                        canvas.before:
+                            Color:
+                                rgba: app.accent_color if root.user_environment == 'cardio_only' else (0.18, 0.18, 0.18, 1)
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(14)]
+                        on_press: animations.button_flash(self); root.set_environment('cardio_only')
+
+                    Button:
+                        text: "SELECT EXERCISES >"
+                        bold: True
+                        size_hint_y: None
+                        height: dp(30)
+                        background_normal: ''
+                        background_down: ''
+                        background_color: 0, 0, 0, 0
+                        color: 0.0, 0.8, 1.0, 1
+                        canvas.before:
+                            Color:
+                                rgba: app.card_bg
+                            RoundedRectangle:
+                                pos: self.pos
+                                size: self.size
+                                radius: [dp(14)]
+                        on_press: animations.button_flash(self); root.open_exercise_selection()
+
+                # Save Button - pill
+                Button:
+                    text: "SAVE PROFILE"
+                    font_size: '16sp'
+                    bold: True
+                    size_hint_y: None
+                    height: dp(50)
+                    background_normal: ''
+                    background_down: ''
+                    background_color: 0, 0, 0, 0
+                    color: 0.07, 0.07, 0.07, 1
+                    canvas.before:
+                        Color:
+                            rgba: app.accent_color
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(25)]
+                    on_press: animations.button_flash(self); root.complete_onboarding()
+
+                Widget:
+                    size_hint_y: None
+                    height: dp(20)
