@@ -12,23 +12,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.11
+      - name: Setup Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
-      - name: Force Python 3.11 as system default
+      - name: Force system Python to 3.10
         run: |
-          PY311=$(which python3)
-          echo "Python 3.11 at: $PY311"
+          PY310=$(which python3)
+          echo "Python at: $PY310"
           python3 --version
-          # Force every subprocess to use our Python 3.11
-          sudo update-alternatives --install /usr/bin/python3 python3 "$PY311" 100
-          sudo update-alternatives --set python3 "$PY311"
-          # Also override any python3.X that might be found
-          PY311_DIR=$(dirname "$PY311")
-          echo "$PY311_DIR" >> $GITHUB_PATH
-          echo "PYTHON=$PY311" >> $GITHUB_ENV
+          # Override system python3 and python
+          sudo update-alternatives --install /usr/bin/python3 python3 "$PY310" 100
+          sudo update-alternatives --install /usr/bin/python python "$PY310" 100
+          sudo update-alternatives --set python3 "$PY310"
+          sudo update-alternatives --set python "$PY310"
+          # Add to front of PATH
+          PY310_DIR=$(dirname "$PY310")
+          echo "$PY310_DIR" >> $GITHUB_PATH
+          # Verify
+          which python3
           python3 --version
 
       - name: Install system dependencies
@@ -41,9 +44,6 @@ jobs:
           python3 -m pip install --upgrade pip setuptools wheel
           pip install cython==0.29.37
           pip install buildozer==1.5.0
-          python3 --version
-          which python3
-          which buildozer
 
       - name: Accept Android SDK Licenses
         run: |
