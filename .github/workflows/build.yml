@@ -15,13 +15,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            git zip unzip openjdk-17-jdk \
-            autoconf libtool pkg-config \
-            zlib1g-dev libncurses-dev libtinfo-dev \
-            cmake libffi-dev libssl-dev \
-            automake autopoint gettext \
-            python3-pip python3-venv
+          sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses-dev libtinfo-dev cmake libffi-dev libssl-dev automake autopoint gettext python3-pip python3-venv
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
@@ -41,8 +35,7 @@ jobs:
           yes | sdkmanager --licenses || true
 
       - name: Build APK
-        run: |
-          buildozer -v android debug 2>&1 | tail -200
+        run: buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
