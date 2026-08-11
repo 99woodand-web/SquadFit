@@ -20,7 +20,7 @@ version = 0.1.0
 # PINNED versions — these are tested together
 # Kivy 2.2.0 has pre-built Android wheels (2.3.x does not)
 # Cython 0.29.33 is required by buildozer recipes
-requirements = python3==3.10.12,kivy==2.2.0,kivymd==1.1.1,Cython==0.29.33
+requirements = python3,kivy==2.2.0,kivymd==1.1.1,Cython==0.29.33
 
 # -- Android Configuration ----------------------------------
 android.permissions = INTERNET, VIBRATE, ACCESS_NETWORK_STATE
