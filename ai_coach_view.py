@@ -39,10 +39,7 @@ class AICoachScreen(BoxLayout):
         # 1. Today's Recommendation
         self._build_recommendation_card(content, data['today_recommendation'], data['generated_workout'])
 
-        # 2. Muscle Recovery Bars
-        self._build_recovery_section(content, data['recovery'])
-
-        # 3. Weekly Volume
+        # 2. Weekly Volume
         self._build_volume_section(content, data['weekly_volume'])
 
         # 4. Progressive Overload Suggestions
@@ -115,64 +112,6 @@ class AICoachScreen(BoxLayout):
             padding=[dp(4), 0]
         )
         card.add_widget(ex_label)
-
-    def _build_recovery_section(self, container, recovery):
-        """Build the muscle recovery visualization."""
-        card = self._make_card(container, height=dp(260))
-
-        card.add_widget(self._section_label("MUSCLE RECOVERY STATUS"))
-
-        for muscle in ["Chest", "Back", "Legs", "Shoulders", "Biceps", "Triceps", "Core"]:
-            if muscle not in recovery:
-                continue
-            info = recovery[muscle]
-            row = self._build_recovery_row(muscle, info)
-            card.add_widget(row)
-
-    def _build_recovery_row(self, muscle, info):
-        """Build a single muscle recovery row with colored bar."""
-        recovery = info['recovery']
-        status = info['status']
-        days_ago = info.get('days_ago')
-
-        row = BoxLayout(
-            orientation='horizontal', spacing=dp(8),
-            size_hint_y=None, height=dp(28),
-            padding=[dp(4), 0]
-        )
-
-        # Muscle name
-        row.add_widget(Label(
-            text=muscle, font_size='11sp', bold=True,
-            color=(0.8, 0.8, 0.8, 1), halign='left',
-            size_hint_x=0.22, text_size=(None, None)
-        ))
-
-        # Recovery bar
-        bar_widget = RecoveryBarWidget(recovery_pct=recovery, size_hint_x=0.45)
-        row.add_widget(bar_widget)
-
-        # Percentage
-        if recovery >= 80:
-            color = (0.2, 1.0, 0.6, 1)
-        elif recovery >= 50:
-            color = (1.0, 0.84, 0.0, 1)
-        else:
-            color = (1.0, 0.4, 0.4, 1)
-
-        row.add_widget(Label(
-            text=f"{recovery}%", font_size='11sp', bold=True,
-            color=color, size_hint_x=0.12
-        ))
-
-        # Days ago
-        days_text = f"{days_ago}d ago" if days_ago is not None else "Fresh"
-        row.add_widget(Label(
-            text=days_text, font_size='9sp',
-            color=(0.5, 0.5, 0.5, 1), size_hint_x=0.21
-        ))
-
-        return row
 
     def _build_volume_section(self, container, volume):
         """Build the weekly volume tracker."""
@@ -379,40 +318,6 @@ class AICoachScreen(BoxLayout):
 # ═══════════════════════════════════════════════════════════════════════════════
 #  CUSTOM WIDGETS
 # ═══════════════════════════════════════════════════════════════════════════════
-
-class RecoveryBarWidget(Widget):
-    """Draws a colored recovery bar based on percentage."""
-    recovery_pct = 50
-
-    def __init__(self, recovery_pct=50, **kwargs):
-        super().__init__(**kwargs)
-        self.recovery_pct = recovery_pct
-        self.bind(pos=self._draw)
-        self.bind(size=self._draw)
-        Clock.schedule_once(lambda dt: self._draw(), 0.1)
-
-    def _draw(self, *args):
-        self.canvas.clear()
-        with self.canvas:
-            # Background bar
-            Color(0.15, 0.15, 0.15, 1)
-            RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(4)])
-
-            # Fill bar
-            fill_width = self.width * (self.recovery_pct / 100.0)
-            if self.recovery_pct >= 80:
-                Color(0.2, 1.0, 0.6, 0.9)  # Green
-            elif self.recovery_pct >= 50:
-                Color(1.0, 0.84, 0.0, 0.9)  # Yellow
-            else:
-                Color(1.0, 0.4, 0.4, 0.9)  # Red
-
-            RoundedRectangle(
-                pos=self.pos,
-                size=(fill_width, self.height),
-                radius=[dp(4)]
-            )
-
 
 class VolumeBarWidget(Widget):
     """Draws a volume tracking bar."""

@@ -62,30 +62,30 @@
             icon: "chart-line"
             icon_size: '20sp'
             theme_text_color: "Custom"
-            text_color: 0.07, 0.07, 0.07, 1
-            md_bg_color: app.accent_color
+            text_color: app.accent_color
+            md_bg_color: app.card_bg
             size_hint_x: 0.33
-            on_release: self.md_bg_color = app.accent_color; root.switch_tab('charts')
+            on_release: root.switch_tab('charts')
 
         MDIconButton:
             id: tab_prs
             icon: "trophy"
             icon_size: '20sp'
             theme_text_color: "Custom"
-            text_color: app.accent_color
+            text_color: 0.6, 0.6, 0.6, 1
             md_bg_color: app.card_bg
             size_hint_x: 0.33
-            on_release: self.md_bg_color = app.card_bg; root.switch_tab('prs')
+            on_release: root.switch_tab('prs')
 
         MDIconButton:
             id: tab_calendar
             icon: "calendar"
             icon_size: '20sp'
             theme_text_color: "Custom"
-            text_color: app.accent_color
+            text_color: 0.6, 0.6, 0.6, 1
             md_bg_color: app.card_bg
             size_hint_x: 0.33
-            on_release: self.md_bg_color = app.card_bg; root.switch_tab('calendar')
+            on_release: root.switch_tab('calendar')
 
     # ═══ CONTENT AREA ═══
     ScrollView:

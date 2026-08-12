@@ -176,11 +176,13 @@ class ProgressScreen(BoxLayout):
             if hasattr(self.ids, tab_id):
                 btn = self.ids[tab_id]
                 is_active = (name == tab_name)
-                btn.color = (0.07, 0.07, 0.07, 1) if is_active else (0.8, 0.8, 0.8, 1)
-                btn.md_bg_color = app.accent_color if is_active else app.card_bg
+                # Active tab: bright green icon on the dark card background so
+                # it stays visible. Inactive tabs: grey icon.
+                btn.color = app.accent_color if is_active else (0.6, 0.6, 0.6, 1)
+                btn.md_bg_color = app.card_bg
                 btn.canvas.before.clear()
                 with btn.canvas.before:
-                    Color(*app.accent_color if is_active else app.card_bg)
+                    Color(*app.card_bg)
                     RoundedRectangle(pos=btn.pos, size=btn.size, radius=[dp(12)])
                 # Store tab name on the button for dynamic redraw
                 btn._tab_name = name
@@ -203,15 +205,16 @@ class ProgressScreen(BoxLayout):
             RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(12)])
 
     def _update_tab_bg(self, inst):
-        """Redraw tab background based on current active tab."""
+        """Redraw tab based on current active tab (green icon when active)."""
         from kivy.app import App
         app = App.get_running_app()
         tab_name = getattr(inst, '_tab_name', '')
         is_active = (tab_name == self.current_tab)
-        color = app.accent_color if is_active else app.card_bg
+        inst.color = app.accent_color if is_active else (0.6, 0.6, 0.6, 1)
+        inst.md_bg_color = app.card_bg
         inst.canvas.before.clear()
         with inst.canvas.before:
-            Color(*color)
+            Color(*app.card_bg)
             RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(12)])
     
     # ═══════════════════════════════════════════════════════════════
@@ -233,12 +236,14 @@ class ProgressScreen(BoxLayout):
             exercises_with_data = self._build_exercises_from_completions()
         
         if not exercises_with_data:
-            container.add_widget(Label(
+            lbl = Label(
                 text="No exercise data yet.\nComplete workouts to see progress charts!",
                 font_size='14sp', color=(0.5, 0.5, 0.5, 1),
                 halign='center', valign='middle',
                 size_hint_y=None, height=dp(100)
-            ))
+            )
+            lbl.bind(size=lambda inst, val: setattr(inst, 'text_size', inst.size))
+            container.add_widget(lbl)
             return
         
         # Section header
@@ -364,12 +369,14 @@ class ProgressScreen(BoxLayout):
         prs = self._detect_all_prs()
         
         if not prs:
-            container.add_widget(Label(
+            lbl = Label(
                 text="No personal records yet.\nComplete workouts to start tracking PRs!",
                 font_size='14sp', color=(0.5, 0.5, 0.5, 1),
                 halign='center', valign='middle',
                 size_hint_y=None, height=dp(100)
-            ))
+            )
+            lbl.bind(size=lambda inst, val: setattr(inst, 'text_size', inst.size))
+            container.add_widget(lbl)
             return
         
         # Section header

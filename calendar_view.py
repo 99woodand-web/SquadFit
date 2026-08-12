@@ -729,6 +729,10 @@ class CalendarViewScreen(BoxLayout):
 
         self.ids.lbl_routine_exercises_preview.text = exercise_string
 
+        # Always start the routine list at the top when (re)loading a day
+        if hasattr(self.ids, 'routine_scroll'):
+            self.ids.routine_scroll.scroll_y = 1
+
         self._highlight_day(day_index)
         # Refresh completion dots
         self._update_completion_dots()

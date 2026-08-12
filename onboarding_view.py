@@ -200,8 +200,8 @@ class OnboardingScreen(BoxLayout):
         changes_text = "\n".join([f"  * {c}" for c in preview["changes"]])
         content.add_widget(Label(
             text=f"Your settings have changed:\n{changes_text}",
-            font_size='13sp', color=(0.8, 0.8, 0.8, 1),
-            halign='left', valign='top', size_hint_y=None, height=dp(50),
+            font_size='12sp', color=(0.8, 0.8, 0.8, 1),
+            halign='left', valign='top', size_hint_y=None, height=dp(62),
             text_size=(dp(280), None)
         ))
 
@@ -234,7 +234,7 @@ class OnboardingScreen(BoxLayout):
                     RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(14)])
 
         btn_yes = Button(
-            text="GENERATE PLAN", bold=True, font_size='12sp',
+            text="UPDATE", bold=True, font_size='12sp',
             background_normal='', background_down='', background_color=(0,0,0,0),
             color=(0.07, 0.07, 0.07, 1),
             text_size=(dp(130), None)
@@ -246,7 +246,7 @@ class OnboardingScreen(BoxLayout):
         btn_box.add_widget(btn_yes)
 
         btn_cancel = Button(
-            text="KEEP CURRENT", bold=True, font_size='12sp',
+            text="KEEP", bold=True, font_size='12sp',
             background_normal='', background_down='', background_color=(0,0,0,0),
             color=(0.8, 0.8, 0.8, 1),
             text_size=(dp(130), None)

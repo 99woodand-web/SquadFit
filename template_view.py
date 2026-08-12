@@ -380,7 +380,7 @@ class TemplateView:
 
         # Title
         content.add_widget(Label(
-            text="SAVE ROUTINE",
+            text="SAVE",
             font_size='18sp', bold=True,
             color=(0.2, 1.0, 0.6, 1),
             size_hint_y=None, height=dp(30)
@@ -388,7 +388,7 @@ class TemplateView:
 
         # Name input
         content.add_widget(Label(
-            text="Template Name",
+            text="Program Name",
             font_size='12sp', color=(0.6, 0.6, 0.6, 1),
             size_hint_y=None, height=dp(18),
             halign='left'
@@ -407,10 +407,8 @@ class TemplateView:
         content.add_widget(name_input)
 
         # Exercise preview
-        ex_count = len(session_data.get("exercises", []))
-        focus = session_data.get("focus", "Workout")
         content.add_widget(Label(
-            text=f"Saving {ex_count} exercises from: {focus}",
+            text="Saving custom routine",
             font_size='12sp', color=(0.5, 0.5, 0.5, 1),
             size_hint_y=None, height=dp(20)
         ))
