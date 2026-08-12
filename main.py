@@ -219,6 +219,13 @@ class ProgressScreenWrapper(Screen):
         super().__init__(**kwargs)
         self.add_widget(ProgressScreen())
 
+    def on_pre_enter(self):
+        """Refresh stats every time the user navigates here, so newly
+        completed workouts always show up."""
+        screen = self.children[0]
+        if hasattr(screen, 'switch_tab'):
+            screen.switch_tab(screen.current_tab)
+
 class AICoachScreenWrapper(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

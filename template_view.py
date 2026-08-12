@@ -45,10 +45,18 @@ class TemplateView:
 
         # Title
         content.add_widget(Label(
-            text="WORKOUT TEMPLATES",
+            text="PROGRAM LIBRARY",
             font_size='18sp', bold=True,
             color=(0.2, 1.0, 0.6, 1),
             size_hint_y=None, height=dp(30)
+        ))
+
+        # Subtitle
+        content.add_widget(Label(
+            text="Select a routine",
+            font_size='12sp',
+            color=(0.5, 0.5, 0.5, 1),
+            size_hint_y=None, height=dp(18)
         ))
 
         # Template list (scrollable)
@@ -130,7 +138,7 @@ class TemplateView:
             size_hint_x=0.65
         ))
         edit_btn = Button(
-            text="EDIT", bold=True, font_size='12sp',
+            text="SELECT", bold=True, font_size='12sp',
             size_hint_x=0.35, size_hint_y=None, height=dp(30),
             background_normal='', background_down='',
             background_color=(0, 0, 0, 0),

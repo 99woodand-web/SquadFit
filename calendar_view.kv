@@ -44,25 +44,29 @@
             text_color: app.accent_color
             size_hint_x: None
             width: dp(48)
-            on_release: root.open_features_popup()
+            on_release: self.md_bg_color = [0,0,0,0]; root.open_features_popup()
 
         # Progress button
         MDIconButton:
+            id: btn_progress_icon
             icon: "chart-line"
             icon_size: '22sp'
             theme_text_color: "Custom"
             text_color: app.accent_color
             size_hint_x: None
             width: dp(48)
-            on_release: root.go_to_progress()
+            on_release: self.md_bg_color = [0,0,0,0]; root.go_to_progress()
 
-        Image:
+        # Settings cog (same widget type as the other header icons -> identical alignment)
+        MDIconButton:
             id: btn_cog
-            source: 'assets/cog.png'
-            size_hint: None, None
-            size: dp(28), dp(28)
-            fit_mode: "contain"
-            on_touch_down: if self.collide_point(*args[1].pos): root.open_settings_popup()
+            icon: "cog"
+            icon_size: '22sp'
+            theme_text_color: "Custom"
+            text_color: app.accent_color
+            size_hint_x: None
+            width: dp(48)
+            on_release: self.md_bg_color = [0,0,0,0]; root.open_settings_popup()
 
     # 7-Day Strip
     BoxLayout:
@@ -295,7 +299,7 @@
             # Show EDIT button in routine mode, RESCHEDULE in AI mode
             Button:
                 id: btn_load_or_reschedule
-                text: "EDIT" if root.workout_mode == 'routine' else "RESCHEDULE"
+                text: "ASSIGN" if root.workout_mode == 'routine' else "RESCHEDULE"
                 bold: True
                 font_size: '12sp'
                 background_normal: ''

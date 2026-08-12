@@ -39,24 +39,21 @@ class ProgressScreen(BoxLayout):
     #  DATA LOADING
     # ═══════════════════════════════════════════════════════════════
     def _load_workout_history(self):
-        """Load workout history from JSON file."""
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'workout_history.json')
-        try:
-            if os.path.exists(path):
-                with open(path, 'r') as f:
-                    data = json.load(f)
-                if isinstance(data, list):
-                    grouped = {}
-                    for entry in data:
-                        if isinstance(entry, dict):
-                            ex_name = entry.get('exercise', '')
-                            if ex_name:
-                                grouped.setdefault(ex_name, []).append(entry)
-                    return grouped
-                return data if isinstance(data, dict) else {}
-        except Exception:
-            pass
-        return {}
+        """Build workout history from completions (grouped by exercise + date)."""
+        from collections import defaultdict
+        history = defaultdict(list)
+        for c in self._load_completions():
+            date = c.get('date', '')
+            for s in c.get('sets', []):
+                ex_name = s.get('exercise', '')
+                if ex_name:
+                    history[ex_name].append({
+                        'exercise': ex_name,
+                        'reps': s.get('reps', 0),
+                        'date': date,
+                        'set': s.get('set', 0)
+                    })
+        return dict(history)
     
     def _load_completions(self):
         """Load workout completions from JSON file."""
@@ -71,6 +68,22 @@ class ProgressScreen(BoxLayout):
         except Exception:
             pass
         return []
+
+    def _build_exercises_from_completions(self):
+        """Build exercise data from workout completions if history is empty."""
+        from collections import defaultdict
+        exercises = defaultdict(list)
+        for c in self._completions:
+            for s in c.get('sets', []):
+                ex_name = s.get('exercise', '')
+                if ex_name:
+                    exercises[ex_name].append({
+                        'exercise': ex_name,
+                        'reps': s.get('reps', 0),
+                        'date': c.get('date', ''),
+                        'sets': 1
+                    })
+        return list(exercises.items())
 
     def export_history_csv(self):
         """Export all workout history to a CSV file."""
@@ -150,6 +163,9 @@ class ProgressScreen(BoxLayout):
     # ═══════════════════════════════════════════════════════════════
     def switch_tab(self, tab_name):
         """Switch between Charts, PRs, and Calendar tabs."""
+        # Refresh data from disk so completed workouts always show
+        self._workout_history = self._load_workout_history()
+        self._completions = self._load_completions()
         self.current_tab = tab_name
         
         # Update tab button styles
@@ -161,6 +177,7 @@ class ProgressScreen(BoxLayout):
                 btn = self.ids[tab_id]
                 is_active = (name == tab_name)
                 btn.color = (0.07, 0.07, 0.07, 1) if is_active else (0.8, 0.8, 0.8, 1)
+                btn.md_bg_color = app.accent_color if is_active else app.card_bg
                 btn.canvas.before.clear()
                 with btn.canvas.before:
                     Color(*app.accent_color if is_active else app.card_bg)
@@ -208,8 +225,12 @@ class ProgressScreen(BoxLayout):
         # Get exercises with history
         exercises_with_data = []
         for ex_name, sessions in self._workout_history.items():
-            if len(sessions) >= 2:  # Need at least 2 sessions for a chart
+            if len(sessions) >= 1:  # Show even 1 session
                 exercises_with_data.append((ex_name, sessions))
+        
+        # Also build from completions if history is empty
+        if not exercises_with_data:
+            exercises_with_data = self._build_exercises_from_completions()
         
         if not exercises_with_data:
             container.add_widget(Label(

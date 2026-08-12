@@ -41,6 +41,24 @@ class WorkoutConsoleScreen(BoxLayout):
         self._history_sets = []        # Sets from completed session
         self._history_elapsed = 0      # Duration of completed session
 
+    def _update_progress_bar(self):
+        """Update the bottom progress bar fill width."""
+        try:
+            fill = self.ids.get('progress_bar_fill')
+            if fill and self.total_sets > 0:
+                ratio = min(self.completed_sets / self.total_sets, 1.0)
+                fill.canvas.before.clear()
+                from kivy.graphics import Color, RoundedRectangle
+                from kivy.metrics import dp as _dp
+                with fill.canvas.before:
+                    Color(0.07, 0.82, 0.45, 1)
+                    RoundedRectangle(
+                        pos=fill.pos,
+                        size=(fill.width * ratio, fill.height),
+                        radius=[_dp(2)]
+                    )
+        except Exception:
+            pass
 
 
     # ═══════════════════════════════════════════════════════════════
@@ -270,6 +288,7 @@ class WorkoutConsoleScreen(BoxLayout):
             self.ids.lbl_sync_status.text = "Viewing completed workout"
         if hasattr(self.ids, 'lbl_sets_completed'):
             self.ids.lbl_sets_completed.text = f"Sets: {self.completed_sets}/{self.total_sets}"
+        self._update_progress_bar()
         
         # Mark all logged sets as completed visually
         self._apply_history_state()
@@ -340,6 +359,7 @@ class WorkoutConsoleScreen(BoxLayout):
             self.ids.lbl_sync_status.text = "Editing — tap + to change reps"
         if hasattr(self.ids, 'lbl_sets_completed'):
             self.ids.lbl_sets_completed.text = f"Sets: {self.completed_sets}/{self.total_sets}"
+        self._update_progress_bar()
 
         # Re-enable ALL checkmarks and inputs (logged + unlogged)
         from kivy.app import App
@@ -909,6 +929,7 @@ class WorkoutConsoleScreen(BoxLayout):
             self.ids.lbl_sync_status.text = f"Set logged! ({self.completed_sets}/{self.total_sets})"
         if hasattr(self.ids, 'lbl_sets_completed'):
             self.ids.lbl_sets_completed.text = f"Sets: {self.completed_sets}"
+        self._update_progress_bar()
 
         print(f"[Workout] Logged set {set_idx+1} of {ex.get('name', '?')}")
 
@@ -1433,6 +1454,7 @@ class WorkoutConsoleScreen(BoxLayout):
             self.completed_sets = len(self.logged_sets)
             if hasattr(self.ids, 'lbl_sets_completed'):
                 self.ids.lbl_sets_completed.text = f"Sets: {self.completed_sets}/{self.total_sets}"
+            self._update_progress_bar()
             # Mark as logged visually
             info['logged'] = True
             info['check'].text = "DONE"
@@ -1768,6 +1790,7 @@ class WorkoutConsoleScreen(BoxLayout):
         self.total_sets = sum(ex.get('sets', 3) for ex in self.exercises_data)
         if hasattr(self.ids, 'lbl_sets_completed'):
             self.ids.lbl_sets_completed.text = f"Sets: {self.completed_sets}/{self.total_sets}"
+        self._update_progress_bar()
 
     # ═══════════════════════════════════════════════════════════════
     #  EXERCISE SWAP (legacy alias)

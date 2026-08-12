@@ -20,7 +20,7 @@ def _refresh_canvas(inst):
             RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(14)])
 
 class CalendarViewScreen(BoxLayout):
-    selected_day_index = NumericProperty(0)
+    selected_day_index = NumericProperty(-1)  # -1 = not yet set; _init_calendar sets to today
     shift_mode_active = BooleanProperty(False)
     workout_mode = StringProperty('ai')  # 'ai' or 'routine'
 
@@ -50,8 +50,11 @@ class CalendarViewScreen(BoxLayout):
         # Try to load from generated plan first
         self._load_from_generated_plan()
         today = datetime.now().weekday()
+        self.selected_day_index = today
         self.load_selected_day_schedule(today)
         self.load_user_name()
+        # Ensure today's button is highlighted after layout settles
+        Clock.schedule_once(lambda dt: self._highlight_day(today), 0.5)
         # Draw toggle buttons
         Clock.schedule_once(lambda dt: self._update_toggle_visuals(), 0.3)
         # Update completion dots on day buttons — delay to let layout settle

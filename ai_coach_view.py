@@ -62,7 +62,7 @@ class AICoachScreen(BoxLayout):
 
     def _build_recommendation_card(self, container, recommendation, workout):
         """Build the 'Train Today' recommendation card."""
-        card = self._make_card(container, height=dp(180))
+        card = self._make_card(container, height=dp(200))
 
         # Title
         card.add_widget(self._section_label("TODAY'S AI RECOMMENDATION"))
@@ -83,9 +83,11 @@ class AICoachScreen(BoxLayout):
 
         rec_label = Label(
             text=f"Train: {muscle_text}",
-            font_size='14sp', bold=True, markup=True,
+            font_size='12sp', bold=True, markup=True,
             color=(1, 1, 1, 1), halign='left',
             size_hint_y=None, height=dp(28),
+            shorten=True, shorten_from='right', max_lines=1,
+            text_size=(dp(280), None),
             padding=[dp(4), 0]
         )
         card.add_widget(rec_label)
@@ -93,10 +95,10 @@ class AICoachScreen(BoxLayout):
         # Reasoning
         reasoning = Label(
             text=recommendation['reasoning'],
-            font_size='11sp', color=(0.6, 0.6, 0.6, 1),
+            font_size='10sp', color=(0.55, 0.55, 0.55, 1),
             halign='left', valign='top',
-            size_hint_y=None, height=dp(40),
-            text_size=(None, None),
+            size_hint_y=None, height=dp(32),
+            text_size=(dp(280), None),
             padding=[dp(4), 0]
         )
         card.add_widget(reasoning)
@@ -105,11 +107,11 @@ class AICoachScreen(BoxLayout):
         exercises = workout['exercises']
         ex_list = "\n".join([f"  {i+1}. {e['name']} ({e['sets']}x{e['reps']})" for i, e in enumerate(exercises[:6])])
         ex_label = Label(
-            text=f"[color=AAAAAA]Suggested exercises:[/color]\n{ex_list}",
-            font_size='11sp', markup=True, color=(0.7, 0.7, 0.7, 1),
+            text=f"[color=777777]Today's exercises:[/color]\n{ex_list}",
+            font_size='10sp', markup=True, color=(0.6, 0.6, 0.6, 1),
             halign='left', valign='top',
-            size_hint_y=None, height=dp(80),
-            text_size=(None, None),
+            size_hint_y=None, height=dp(70),
+            text_size=(dp(280), None),
             padding=[dp(4), 0]
         )
         card.add_widget(ex_label)
@@ -356,10 +358,10 @@ class AICoachScreen(BoxLayout):
     def _section_label(self, text):
         """Create a section header label."""
         return Label(
-            text=text, font_size='12sp', bold=True,
+            text=text, font_size='11sp', bold=True,
             color=(0.5, 0.5, 0.5, 1), halign='left',
-            size_hint_y=None, height=dp(22),
-            text_size=(None, None),
+            size_hint_y=None, height=dp(20),
+            text_size=(dp(280), None),
             padding=[dp(4), 0]
         )
 
@@ -434,10 +436,12 @@ class VolumeBarWidget(Widget):
             fill_width = self.width * (min(self.volume_pct, 100) / 100.0)
             if self.volume_pct >= 100:
                 Color(0.2, 1.0, 0.6, 0.9)  # Green - optimal
-            elif self.volume_pct >= 70:
-                Color(1.0, 0.84, 0.0, 0.9)  # Yellow - adequate
+            elif self.volume_pct >= 50:
+                Color(1.0, 0.84, 0.0, 0.9)  # Yellow - building
+            elif self.volume_pct >= 25:
+                Color(1.0, 0.7, 0.3, 0.9)  # Orange - getting there
             else:
-                Color(1.0, 0.4, 0.4, 0.9)  # Red - low
+                Color(0.9, 0.35, 0.35, 0.8)  # Soft red - just started
 
             RoundedRectangle(
                 pos=self.pos,

@@ -219,28 +219,34 @@ class ExerciseSelectionScreen(BoxLayout):
         self.exercise_checkboxes[exercise_id] = checkbox
         row.add_widget(checkbox)
 
-        # Column 2: Exercise name (takes remaining space, left-aligned)
+        # Column 2: Exercise name (takes remaining space, left-aligned, truncated)
         name = exercise.get('name', 'Unknown')
         name_label = Label(
             text=name,
-            font_size='13sp', bold=True,
+            font_size='12sp', bold=True,
             color=(0.95, 0.95, 0.95, 1),
             halign='left',
             valign='middle',
-            padding=[dp(4), 0],
+            shorten=True,
+            shorten_from='right',
+            max_lines=1,
             size_hint_x=0.55
         )
+        name_label.bind(width=lambda inst, val: setattr(inst, 'text_size', (val, None)))
         row.add_widget(name_label)
 
-        # Column 3: Equipment (fixed width, left-aligned)
+        # Column 3: Equipment (fixed width, left-aligned, truncated)
         equip = exercise.get('equip', '')
         equip_label = Label(
             text=equip,
-            font_size='11sp',
-            color=(0.6, 0.6, 0.6, 1),
+            font_size='10sp',
+            color=(0.5, 0.5, 0.5, 1),
             halign='left',
             valign='middle',
-            size_hint_x=0.25
+            shorten=True,
+            shorten_from='right',
+            max_lines=1,
+            size_hint_x=0.28
         )
         row.add_widget(equip_label)
 

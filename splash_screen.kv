@@ -19,19 +19,15 @@
         size_hint_y: 0.35
 
     # App icon / logo area
-    BoxLayout:
-        orientation: 'vertical'
+    AnchorLayout:
         size_hint_y: None
-        height: dp(120)
-        spacing: dp(8)
+        height: dp(140)
 
-        MDIconButton:
-            icon: "dumbbell"
-            icon_size: '64sp'
-            theme_text_color: "Custom"
-            text_color: app.accent_color
-            pos_hint: {'center_x': 0.5}
-            disabled: True
+        Image:
+            source: 'assets/icon.png'
+            size_hint: None, None
+            size: dp(96), dp(96)
+            fit_mode: "contain"
 
     # App name
     Label:

@@ -65,7 +65,7 @@
             text_color: 0.07, 0.07, 0.07, 1
             md_bg_color: app.accent_color
             size_hint_x: 0.33
-            on_release: animations.button_flash(self); root.switch_tab('charts')
+            on_release: self.md_bg_color = app.accent_color; root.switch_tab('charts')
 
         MDIconButton:
             id: tab_prs
@@ -75,7 +75,7 @@
             text_color: app.accent_color
             md_bg_color: app.card_bg
             size_hint_x: 0.33
-            on_release: animations.button_flash(self); root.switch_tab('prs')
+            on_release: self.md_bg_color = app.card_bg; root.switch_tab('prs')
 
         MDIconButton:
             id: tab_calendar
@@ -85,7 +85,7 @@
             text_color: app.accent_color
             md_bg_color: app.card_bg
             size_hint_x: 0.33
-            on_release: animations.button_flash(self); root.switch_tab('calendar')
+            on_release: self.md_bg_color = app.card_bg; root.switch_tab('calendar')
 
     # ═══ CONTENT AREA ═══
     ScrollView:

@@ -201,8 +201,8 @@ class OnboardingScreen(BoxLayout):
         content.add_widget(Label(
             text=f"Your settings have changed:\n{changes_text}",
             font_size='13sp', color=(0.8, 0.8, 0.8, 1),
-            halign='left', size_hint_y=None, height=dp(50),
-            text_size=(None, None)
+            halign='left', valign='top', size_hint_y=None, height=dp(50),
+            text_size=(dp(280), None)
         ))
 
         # New plan preview
@@ -215,8 +215,8 @@ class OnboardingScreen(BoxLayout):
                  f"Rest between sets: {new['rest_between_sets']}\n"
                  f"Cardio mix: {new['cardio_mix']}",
             font_size='12sp', color=(0.7, 0.7, 0.7, 1),
-            halign='left', size_hint_y=None, height=dp(90),
-            text_size=(None, None)
+            halign='left', valign='top', size_hint_y=None, height=dp(100),
+            text_size=(dp(280), None)
         ))
 
         # Buttons
@@ -234,9 +234,10 @@ class OnboardingScreen(BoxLayout):
                     RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(14)])
 
         btn_yes = Button(
-            text="GENERATE NEW PLAN", bold=True, font_size='12sp',
+            text="GENERATE PLAN", bold=True, font_size='12sp',
             background_normal='', background_down='', background_color=(0,0,0,0),
-            color=(0.07, 0.07, 0.07, 1)
+            color=(0.07, 0.07, 0.07, 1),
+            text_size=(dp(130), None)
         )
         btn_yes = _tag(btn_yes, (0.2, 1.0, 0.6, 1))
         btn_yes.bind(pos=lambda inst, val: _refresh_canvas(inst))
@@ -247,7 +248,8 @@ class OnboardingScreen(BoxLayout):
         btn_cancel = Button(
             text="KEEP CURRENT", bold=True, font_size='12sp',
             background_normal='', background_down='', background_color=(0,0,0,0),
-            color=(0.8, 0.8, 0.8, 1)
+            color=(0.8, 0.8, 0.8, 1),
+            text_size=(dp(130), None)
         )
         btn_cancel = _tag(btn_cancel, (0.25, 0.25, 0.25, 1))
         btn_cancel.bind(pos=lambda inst, val: _refresh_canvas(inst))
