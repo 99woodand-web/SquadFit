@@ -16,6 +16,10 @@ source.include_exts = py,png,jpg,jpeg,kv,ttf,txt,json
 # -- Version ------------------------------------------------
 version = 0.1.0
 
+# -- Icon ---------------------------------------------------
+icon.filename = %(source.dir)s/assets/icon.png
+icon.mode = crop
+
 # -- Requirements -------------------------------------------
 # DO NOT pin Cython here — it conflicts with the target Python.
 # p4a manages Cython internally via its host build toolchain.
@@ -43,6 +47,7 @@ android.enable_androidx = True
 p4a.bootstrap = sdl2
 
 # -- Presplash ----------------------------------------------
+presplash_filename = %(source.dir)s/assets/presplash.png
 presplash_color = #121212
 
 # -- Log Level ----------------------------------------------
