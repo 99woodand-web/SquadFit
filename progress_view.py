@@ -429,7 +429,7 @@ class ProgressScreen(BoxLayout):
         """Build a single PR card."""
         card = BoxLayout(
             orientation='horizontal', spacing=dp(10),
-            padding=dp(12), size_hint_y=None, height=dp(60)
+            padding=dp(12), size_hint_y=None, height=dp(72)
         )
         with card.canvas.before:
             Color(*app.card_bg)
@@ -447,19 +447,27 @@ class ProgressScreen(BoxLayout):
         
         # Exercise info
         info_box = BoxLayout(orientation='vertical', spacing=dp(2))
-        info_box.add_widget(Label(
+        ex_lbl = Label(
             text=pr['exercise'], font_size='13sp', bold=True,
-            color=(1, 1, 1, 1), halign='left'
-        ))
+            color=(1, 1, 1, 1), halign='left', valign='middle',
+            max_lines=2, shorten=False
+        )
+        ex_lbl.bind(size=lambda inst, val: setattr(inst, 'text_size', (inst.width, None)))
+        info_box.add_widget(ex_lbl)
         info_box.add_widget(Label(
             text=f"{pr['reps']} total reps",
             font_size='11sp', color=(0.2, 1.0, 0.6, 1), halign='left'
         ))
         card.add_widget(info_box)
         
-        # Date
+        # Date (UK format DD/MM/YYYY)
+        raw_date = pr.get('date', '')
+        try:
+            disp_date = datetime.strptime(raw_date[:10], '%Y-%m-%d').strftime('%d/%m/%Y')
+        except (ValueError, TypeError):
+            disp_date = raw_date
         card.add_widget(Label(
-            text=pr['date'], font_size='10sp',
+            text=disp_date, font_size='10sp',
             color=(0.5, 0.5, 0.5, 1), halign='right',
             size_hint_x=None, width=dp(80)
         ))

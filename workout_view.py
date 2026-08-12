@@ -500,6 +500,9 @@ class WorkoutConsoleScreen(BoxLayout):
 
         scroll.add_widget(container)
 
+        # Always start a freshly-loaded workout at the top of the list
+        Clock.schedule_once(lambda dt: setattr(scroll, 'scroll_y', 1.0), 0.05)
+
     def _detect_supersets(self):
         """
         Detect superset pairs in the exercise list.
@@ -977,24 +980,12 @@ class WorkoutConsoleScreen(BoxLayout):
                 self.ids.lbl_rest_timer.text = f"REST {mins:02d}:{secs:02d}"
             # Vibrate at 3 seconds remaining (short buzz)
             if self.rest_time_left == 3:
-                try:
-                    from kivy.utils import platform
-                    if platform == 'android':
-                        from jnius import autoclass
-                        autoclass('org.kivy.android.PythonActivity').mActivity.vibrate(0.3)
-                except Exception:
-                    pass
+                self._android_vibrate(200)
         else:
             if self.rest_timer_event:
                 self.rest_timer_event.cancel()
             # Vibrate when rest is complete (long buzz)
-            try:
-                from kivy.utils import platform
-                if platform == 'android':
-                    from jnius import autoclass
-                    autoclass('org.kivy.android.PythonActivity').mActivity.vibrate(0.5)
-            except Exception:
-                pass
+            self._android_vibrate(500)
             # Hide banner
             if hasattr(self.ids, 'rest_banner'):
                 self.ids.rest_banner.opacity = 0
@@ -1003,6 +994,27 @@ class WorkoutConsoleScreen(BoxLayout):
                 self.ids.rest_banner.size_hint_y = None
             if hasattr(self.ids, 'lbl_sync_status'):
                 self.ids.lbl_sync_status.text = "Rest over! Next set ready"
+
+    def _android_vibrate(self, ms):
+        """Trigger haptic vibration on Android (no-op on other platforms)."""
+        try:
+            from kivy.utils import platform
+            if platform != 'android':
+                return
+            from jnius import autoclass
+            activity = autoclass('org.kivy.android.PythonActivity').mActivity
+            vibrator = activity.getSystemService('vibrator')
+            if vibrator is None:
+                return
+            try:
+                # API 26+: use VibrationEffect (required on modern Android)
+                VibrationEffect = autoclass('android.os.VibrationEffect')
+                vibrator.vibrate(VibrationEffect.createOneShot(int(ms), -1))
+            except Exception:
+                # Legacy fallback
+                vibrator.vibrate(int(ms))
+        except Exception:
+            pass
 
     def _scroll_to_next_incomplete(self, current_ex_idx, current_set_idx):
         """Auto-scroll the ScrollView to the next incomplete set."""

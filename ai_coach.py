@@ -687,7 +687,8 @@ class AICoachEngine:
         Returns: dict of {muscle: {"sets": int, "target": int, "status": str}}
         """
         today = datetime.now()
-        week_start = today - timedelta(days=today.weekday())
+        # Start of the week (Monday 00:00) so Monday's workouts always count
+        week_start = (today - timedelta(days=today.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
 
         volume = defaultdict(int)
 

@@ -59,7 +59,7 @@ class AICoachScreen(BoxLayout):
 
     def _build_recommendation_card(self, container, recommendation, workout):
         """Build the 'Train Today' recommendation card."""
-        card = self._make_card(container, height=dp(200))
+        card = self._make_card(container, height=dp(170))
 
         # Title
         card.add_widget(self._section_label("TODAY'S AI RECOMMENDATION"))
@@ -88,17 +88,6 @@ class AICoachScreen(BoxLayout):
             padding=[dp(4), 0]
         )
         card.add_widget(rec_label)
-
-        # Reasoning
-        reasoning = Label(
-            text=recommendation['reasoning'],
-            font_size='10sp', color=(0.55, 0.55, 0.55, 1),
-            halign='left', valign='top',
-            size_hint_y=None, height=dp(32),
-            text_size=(dp(280), None),
-            padding=[dp(4), 0]
-        )
-        card.add_widget(reasoning)
 
         # Generated workout preview
         exercises = workout['exercises']

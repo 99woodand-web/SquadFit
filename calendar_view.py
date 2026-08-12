@@ -477,7 +477,7 @@ class CalendarViewScreen(BoxLayout):
         content.add_widget(btn_cancel)
 
         self._factory_reset_popup = Popup(
-            title="", content=content, size_hint=(0.82, None), height=dp(320),
+            title="", content=content, size_hint=(0.82, None), height=dp(380),
             auto_dismiss=True, background=_POPUP_BG, background_color=(0.1, 0.1, 0.1, 1),
             separator_height=0
         )

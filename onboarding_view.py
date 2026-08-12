@@ -236,8 +236,7 @@ class OnboardingScreen(BoxLayout):
         btn_yes = Button(
             text="UPDATE", bold=True, font_size='12sp',
             background_normal='', background_down='', background_color=(0,0,0,0),
-            color=(0.07, 0.07, 0.07, 1),
-            text_size=(dp(130), None)
+            color=(0.07, 0.07, 0.07, 1)
         )
         btn_yes = _tag(btn_yes, (0.2, 1.0, 0.6, 1))
         btn_yes.bind(pos=lambda inst, val: _refresh_canvas(inst))
@@ -248,8 +247,7 @@ class OnboardingScreen(BoxLayout):
         btn_cancel = Button(
             text="KEEP", bold=True, font_size='12sp',
             background_normal='', background_down='', background_color=(0,0,0,0),
-            color=(0.8, 0.8, 0.8, 1),
-            text_size=(dp(130), None)
+            color=(0.8, 0.8, 0.8, 1)
         )
         btn_cancel = _tag(btn_cancel, (0.25, 0.25, 0.25, 1))
         btn_cancel.bind(pos=lambda inst, val: _refresh_canvas(inst))
