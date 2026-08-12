@@ -12,7 +12,11 @@ from kivy.uix.textinput import TextInput
 from kivy.metrics import dp
 from kivy.app import App
 
+import os
 from template_manager import TemplateManager
+
+# Solid opaque popup background (replaces Kivy's default rounded/translucent one)
+_POPUP_BG = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'popup_bg.png')
 
 
 class TemplateView:
@@ -30,6 +34,14 @@ class TemplateView:
             on_select_callback: Function called with (template) when user selects one
         """
         content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(18))
+
+        # Solid opaque background to prevent overlay blur
+        with content.canvas.before:
+            from kivy.graphics import Color, Rectangle
+            Color(0.1, 0.1, 0.1, 1)
+            Rectangle(pos=content.pos, size=content.size)
+        content.bind(pos=lambda inst, val: self._redraw_content_bg(inst))
+        content.bind(size=lambda inst, val: self._redraw_content_bg(inst))
 
         # Title
         content.add_widget(Label(
@@ -86,7 +98,8 @@ class TemplateView:
             title="", content=content,
             size_hint=(0.88, 0.75),
             auto_dismiss=True,
-            background_color=(0.1, 0.1, 0.1, 0.95),
+            background=_POPUP_BG,
+            background_color=(0.1, 0.1, 0.1, 1),
             separator_height=0
         )
         self.popup.open()
@@ -105,7 +118,7 @@ class TemplateView:
             RoundedRectangle(pos=card.pos, size=card.size, radius=[dp(12)])
         card.bind(pos=lambda inst, val: self._redraw_card_bg(inst), size=lambda inst, val: self._redraw_card_bg(inst))
 
-        # Row 1: Name + LOAD button on same line
+        # Row 1: Name + EDIT button on same line
         row1 = BoxLayout(spacing=dp(8), size_hint_y=None, height=dp(32))
         row1.add_widget(Label(
             text=template.name,
@@ -116,21 +129,21 @@ class TemplateView:
             shorten=True, shorten_from='right',
             size_hint_x=0.65
         ))
-        load_btn = Button(
-            text="LOAD", bold=True, font_size='12sp',
+        edit_btn = Button(
+            text="EDIT", bold=True, font_size='12sp',
             size_hint_x=0.35, size_hint_y=None, height=dp(30),
             background_normal='', background_down='',
             background_color=(0, 0, 0, 0),
             color=(0.07, 0.07, 0.07, 1),
             border=(0, 0, 0, 0)
         )
-        with load_btn.canvas.before:
+        with edit_btn.canvas.before:
             Color(0.2, 1.0, 0.6, 1)
-            RoundedRectangle(pos=load_btn.pos, size=load_btn.size, radius=[dp(10)])
-        load_btn.bind(pos=lambda inst, val: self._redraw_btn(inst, (0.2, 1.0, 0.6, 1)))
-        load_btn.bind(size=lambda inst, val: self._redraw_btn(inst, (0.2, 1.0, 0.6, 1)))
-        load_btn.bind(on_press=lambda x, idx=index: self._load_template(idx, on_select_callback))
-        row1.add_widget(load_btn)
+            RoundedRectangle(pos=edit_btn.pos, size=edit_btn.size, radius=[dp(10)])
+        edit_btn.bind(pos=lambda inst, val: self._redraw_btn(inst, (0.2, 1.0, 0.6, 1)))
+        edit_btn.bind(size=lambda inst, val: self._redraw_btn(inst, (0.2, 1.0, 0.6, 1)))
+        edit_btn.bind(on_press=lambda x, idx=index: self._load_template(idx, on_select_callback))
+        row1.add_widget(edit_btn)
         card.add_widget(row1)
 
         # Row 2: Focus + exercise count
@@ -237,7 +250,7 @@ class TemplateView:
         content.add_widget(btn_row)
 
         confirm_popup = Popup(title="", content=content, size_hint=(0.75, None), height=dp(170),
-            auto_dismiss=True, background_color=(0.1, 0.1, 0.1, 0.95), separator_height=0)
+            auto_dismiss=True, background=_POPUP_BG, background_color=(0.1, 0.1, 0.1, 1), separator_height=0)
 
         def do_delete(x):
             self.manager.delete_template(index)
@@ -269,7 +282,7 @@ class TemplateView:
             size_hint_y=None, height=dp(40),
             background_normal='', background_active='',
             background_color=(0.15, 0.15, 0.15, 1),
-            cursor_color=(0.2, 1.0, 0.6, 1),
+            cursor_color=(0.15, 0.15, 0.15, 1),
             foreground_color=(1, 1, 1, 1),
             hint_text_color=(0.4, 0.4, 0.4, 1),
             padding=[dp(12), dp(8)],
@@ -303,7 +316,7 @@ class TemplateView:
         content.add_widget(btn_row)
 
         rename_popup = Popup(title="", content=content, size_hint=(0.75, None), height=dp(190),
-            auto_dismiss=True, background_color=(0.1, 0.1, 0.1, 0.95), separator_height=0)
+            auto_dismiss=True, background=_POPUP_BG, background_color=(0.1, 0.1, 0.1, 1), separator_height=0)
 
         def do_rename(x):
             new_name = name_input.text.strip()
@@ -333,6 +346,14 @@ class TemplateView:
             Color(0.15, 0.15, 0.15, 1)
             RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(12)])
 
+    def _redraw_content_bg(self, inst):
+        """Redraw popup content's solid background to prevent overlay blur."""
+        inst.canvas.before.clear()
+        with inst.canvas.before:
+            from kivy.graphics import Color, Rectangle
+            Color(0.1, 0.1, 0.1, 1)
+            Rectangle(pos=inst.pos, size=inst.size)
+
     def show_save_popup(self, session_data, on_save_callback=None):
         """
         Show popup to save current workout as a template.
@@ -342,6 +363,12 @@ class TemplateView:
             on_save_callback: Optional callback after saving
         """
         content = BoxLayout(orientation='vertical', spacing=dp(12), padding=dp(18))
+        with content.canvas.before:
+            from kivy.graphics import Color, Rectangle
+            Color(0.1, 0.1, 0.1, 1)
+            Rectangle(pos=content.pos, size=content.size)
+        content.bind(pos=lambda inst, val: self._redraw_content_bg(inst))
+        content.bind(size=lambda inst, val: self._redraw_content_bg(inst))
 
         # Title
         content.add_widget(Label(
@@ -364,7 +391,7 @@ class TemplateView:
             size_hint_y=None, height=dp(44),
             background_normal='', background_active='',
             background_color=(0.15, 0.15, 0.15, 1),
-            cursor_color=(0.2, 1.0, 0.6, 1),
+            cursor_color=(0.15, 0.15, 0.15, 1),
             foreground_color=(1, 1, 1, 1),
             hint_text_color=(0.4, 0.4, 0.4, 1),
             padding=[dp(12), dp(10)]
@@ -421,7 +448,8 @@ class TemplateView:
             title="", content=content,
             size_hint=(0.85, None), height=dp(280),
             auto_dismiss=True,
-            background_color=(0.1, 0.1, 0.1, 0.95),
+            background=_POPUP_BG,
+            background_color=(0.1, 0.1, 0.1, 1),
             separator_height=0
         )
         self.popup.open()

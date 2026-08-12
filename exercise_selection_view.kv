@@ -34,7 +34,7 @@
             on_release: animations.button_flash(self); root.go_back()
 
         Label:
-            text: "MY EXERCISES"
+            text: "PROGRAM LAB"
             font_size: '16sp'
             bold: True
             color: app.accent_color
@@ -57,59 +57,29 @@
             write_tab: False
             background_color: app.card_bg
             foreground_color: (1, 1, 1, 1)
-            cursor_color: app.accent_color
+            cursor_color: app.card_bg
             padding: [dp(12), dp(10), dp(12), dp(10)]
             size_hint_x: 0.7
             on_text: root.filter_exercises()
 
-        Button:
-            text: "CLEAR"
-            font_size: '11sp'
-            bold: True
-            size_hint_x: 0.3
-            background_normal: ''
-            background_down: ''
-            background_color: 0, 0, 0, 0
-            color: 0.07, 0.07, 0.07, 1
-            canvas.before:
-                Color:
-                    rgba: app.accent_color
-                RoundedRectangle:
-                    pos: self.pos
-                    size: self.size
-                    radius: [dp(14)]
-            on_press: animations.button_flash(self); root.clear_search()
 
-    # ═══ MUSCLE GROUP TABS ═══
-    ScrollView:
-        size_hint_y: None
-        height: dp(36)
-        do_scroll_x: True
-        do_scroll_y: False
-        bar_width: 0
 
-        BoxLayout:
-            id: muscle_tabs
-            orientation: 'horizontal'
-            size_hint_x: None
-            width: self.minimum_width
-            spacing: dp(6)
-
-    # ═══ EQUIPMENT FILTER ROW (built programmatically for active state) ═══
+    # ═══ MUSCLE GROUP TABS (2 rows, no scroll) ═══
     BoxLayout:
-        id: equip_tabs
+        id: muscle_tabs
+        orientation: 'vertical'
         size_hint_y: None
-        height: dp(32)
+        height: dp(76)
         spacing: dp(6)
 
     # ═══ SELECTED COUNT ═══
     Label:
         id: lbl_selected_count
-        text: "Selected: 0 / 0 exercises"
+        text: "Selected: 0 / 0"
         font_size: '11sp'
         color: 0.5, 0.5, 0.5, 1
         size_hint_y: None
-        height: dp(18)
+        height: dp(20)
 
     # ═══ EXERCISE LIST ═══
     ScrollView:
@@ -130,13 +100,13 @@
         spacing: dp(10)
 
         Button:
-            text: "SELECT ALL"
+            text: "CLEAR"
             font_size: '12sp'
             bold: True
             background_normal: ''
             background_down: ''
             background_color: 0, 0, 0, 0
-            color: app.accent_color
+            color: 0.6, 0.6, 0.6, 1
             canvas.before:
                 Color:
                     rgba: app.card_bg
@@ -144,27 +114,10 @@
                     pos: self.pos
                     size: self.size
                     radius: [dp(14)]
-            on_press: animations.button_flash(self); root.select_all()
+            on_press: animations.button_flash(self); root.deselect_all()
 
         Button:
-            text: "MY EXERCISES"
-            font_size: '14sp'
-            bold: True
-            background_normal: ''
-            background_down: ''
-            background_color: 0, 0, 0, 0
-            color: 0.07, 0.07, 0.07, 1
-            canvas.before:
-                Color:
-                    rgba: app.accent_color
-                RoundedRectangle:
-                    pos: self.pos
-                    size: self.size
-                    radius: [dp(25)]
-            on_press: animations.button_flash(self); root.save_selection()
-
-        Button:
-            text: "SAVE ROUTINE"
+            text: "SAVE PROGRAM"
             bold: True
             font_size: '12sp'
             background_normal: ''

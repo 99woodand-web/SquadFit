@@ -1,4 +1,4 @@
-# exercise_selection_view.py - Exercise browsing with search, muscle tabs, equipment filters
+# exercise_selection_view.py - Exercise browsing with search, muscle tabs
 import json
 import os
 from kivy.uix.boxlayout import BoxLayout
@@ -11,7 +11,7 @@ from kivy.clock import Clock
 from kivy.metrics import dp
 from kivy.graphics import Color, RoundedRectangle
 
-from exercise_db import get_all_exercises, get_muscle_groups, get_equipment_types
+from exercise_db import get_all_exercises, get_muscle_groups
 
 
 class ExerciseSelectionScreen(BoxLayout):
@@ -19,7 +19,6 @@ class ExerciseSelectionScreen(BoxLayout):
 
     selected_exercises = ListProperty([])
     current_muscle_filter = StringProperty("All")
-    current_equip_filter = StringProperty("All")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -33,7 +32,6 @@ class ExerciseSelectionScreen(BoxLayout):
         """Initialize UI elements after KV is loaded."""
         self._load_selected()
         self._build_muscle_tabs()
-        self._build_equip_tabs()
         self._build_exercise_list()
         self._built = True
 
@@ -60,110 +58,56 @@ class ExerciseSelectionScreen(BoxLayout):
     #  MUSCLE GROUP TABS
     # ═══════════════════════════════════════════════════════════════
     def _build_muscle_tabs(self):
-        """Build horizontal scrollable muscle group filter tabs."""
+        """Build 2-row muscle group filter tabs (4 per row)."""
         if not hasattr(self.ids, 'muscle_tabs'):
             return
         container = self.ids.muscle_tabs
         container.clear_widgets()
 
+        from kivy.app import App
+        app = App.get_running_app()
         muscles = ["All"] + get_muscle_groups()
-        for muscle in muscles:
-            # Highlight active tab - only the SELECTED muscle gets green
-            is_active = (muscle == self.current_muscle_filter)
-            btn = Button(
-                text=muscle.upper(),
-                font_size='10sp',
-                bold=True,
-                size_hint_x=None,
-                width=dp(70),
-                background_normal='',
-                background_down='',
-                background_color=(0, 0, 0, 0),
-                color=(0.07, 0.07, 0.07, 1) if is_active else (0.8, 0.8, 0.8, 1)
-            )
-            from kivy.app import App
-            app = App.get_running_app()
-            active_color = list(app.accent_color)
-            inactive_color = list(app.card_bg)
-            bg = active_color if is_active else inactive_color
+        # Split into 2 rows of 4
+        row1 = muscles[:4]
+        row2 = muscles[4:8]
 
-            with btn.canvas.before:
-                Color(*bg)
-                RoundedRectangle(pos=btn.pos, size=btn.size, radius=[dp(12)])
+        for row_muscles in [row1, row2]:
+            row_box = BoxLayout(spacing=dp(6))
+            for muscle in row_muscles:
+                is_active = (muscle == self.current_muscle_filter)
+                btn = Button(
+                    text=muscle.upper(),
+                    font_size='10sp',
+                    bold=True,
+                    background_normal='',
+                    background_down='',
+                    background_color=(0, 0, 0, 0),
+                    color=(0.07, 0.07, 0.07, 1) if is_active else (0.8, 0.8, 0.8, 1)
+                )
+                active_color = list(app.accent_color)
+                inactive_color = list(app.card_bg)
+                bg = active_color if is_active else inactive_color
 
-            def _redraw(inst, color=bg):
-                inst.canvas.before.clear()
-                with inst.canvas.before:
-                    Color(*color)
-                    RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(12)])
+                with btn.canvas.before:
+                    Color(*bg)
+                    RoundedRectangle(pos=btn.pos, size=btn.size, radius=[dp(12)])
 
-            btn.bind(pos=lambda inst, val, c=bg: _redraw(inst, c))
-            btn.bind(size=lambda inst, val, c=bg: _redraw(inst, c))
-            btn.bind(on_press=lambda x, m=muscle: self._on_muscle_tab(m))
-            container.add_widget(btn)
+                def _redraw(inst, color=bg):
+                    inst.canvas.before.clear()
+                    with inst.canvas.before:
+                        Color(*color)
+                        RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(12)])
+
+                btn.bind(pos=lambda inst, val, c=bg: _redraw(inst, c))
+                btn.bind(size=lambda inst, val, c=bg: _redraw(inst, c))
+                btn.bind(on_press=lambda x, m=muscle: self._on_muscle_tab(m))
+                row_box.add_widget(btn)
+            container.add_widget(row_box)
 
     def _on_muscle_tab(self, muscle):
         """Handle muscle group tab selection."""
         self.current_muscle_filter = muscle
         self._build_muscle_tabs()  # Rebuild to highlight active tab
-        self._build_exercise_list()
-
-    # ═══════════════════════════════════════════════════════════════
-    #  EQUIPMENT FILTER
-    # ═══════════════════════════════════════════════════════════════
-    def _build_equip_tabs(self):
-        """Build equipment filter buttons with active state."""
-        if not hasattr(self.ids, 'equip_tabs'):
-            return
-        container = self.ids.equip_tabs
-        container.clear_widgets()
-
-        from kivy.app import App
-        app = App.get_running_app()
-
-        equip_map = [
-            ("All", "All"),
-            ("BB", "Barbell"),
-            ("DB", "Dumbbells"),
-            ("CABLE", "Cable"),
-            ("MACH", "Machine"),
-            ("BW", "Bodyweight"),
-        ]
-
-        for label, equip_key in equip_map:
-            is_active = (equip_key == self.current_equip_filter)
-            btn = Button(
-                text=label,
-                font_size='10sp',
-                bold=True,
-                background_normal='',
-                background_down='',
-                background_color=(0, 0, 0, 0),
-                color=(0.07, 0.07, 0.07, 1) if is_active else (0.8, 0.8, 0.8, 1)
-            )
-            active_color = list(app.accent_color)
-            inactive_color = list(app.card_bg)
-            bg = active_color if is_active else inactive_color
-
-            with btn.canvas.before:
-                Color(*bg)
-                RoundedRectangle(pos=btn.pos, size=btn.size, radius=[dp(12)])
-
-            def _redraw(inst, color=bg):
-                inst.canvas.before.clear()
-                with inst.canvas.before:
-                    Color(*color)
-                    RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(12)])
-
-            btn.bind(pos=lambda inst, val, c=bg: _redraw(inst, c))
-            btn.bind(size=lambda inst, val, c=bg: _redraw(inst, c))
-            btn.bind(on_press=lambda x, e=equip_key: self.filter_by_equipment(e))
-            container.add_widget(btn)
-
-    def filter_by_equipment(self, equip):
-        """Filter exercises by equipment type."""
-        self.current_equip_filter = equip
-        self._build_equip_tabs()  # Rebuild to highlight active tab
         self._build_exercise_list()
 
     # ═══════════════════════════════════════════════════════════════
@@ -178,7 +122,6 @@ class ExerciseSelectionScreen(BoxLayout):
         if hasattr(self.ids, 'search_input'):
             self.ids.search_input.text = ""
         self.current_muscle_filter = "All"
-        self.current_equip_filter = "All"
         self._build_muscle_tabs()
         self._build_exercise_list()
 
@@ -205,14 +148,6 @@ class ExerciseSelectionScreen(BoxLayout):
             # Muscle filter
             if self.current_muscle_filter != "All":
                 if ex.get('muscle', '') != self.current_muscle_filter:
-                    continue
-
-            # Equipment filter
-            if self.current_equip_filter != "All":
-                equip = ex.get('equip', '')
-                tags = ex.get('equip_tags', [])
-                if equip != self.current_equip_filter and \
-                   self.current_equip_filter.lower() not in [t.lower() for t in tags]:
                     continue
 
             # Search filter
@@ -351,14 +286,6 @@ class ExerciseSelectionScreen(BoxLayout):
                 self.selected_exercises.remove(exercise_id)
         self._update_count()
 
-    def _force_set_all_checkboxes(self, visible_ids):
-        """Set all visible checkboxes to active without triggering _on_checkbox."""
-        self._suppress_checkbox_events = True
-        for eid in visible_ids:
-            if eid in self.exercise_checkboxes:
-                self.exercise_checkboxes[eid].active = True
-        self._suppress_checkbox_events = False
-
     def _deduplicate_selection(self):
         """Remove duplicates from selected_exercises using a set."""
         seen = set()
@@ -377,7 +304,7 @@ class ExerciseSelectionScreen(BoxLayout):
         # Also save to profile to prevent stale duplicates
         self._save_selection_silent()
         if hasattr(self.ids, 'lbl_selected_count'):
-            self.ids.lbl_selected_count.text = f"Selected: {selected} / {total} exercises"
+            self.ids.lbl_selected_count.text = f"Selected: {selected} / {total}"
 
     def _save_selection_silent(self):
         """Save selection without user feedback."""
@@ -395,40 +322,6 @@ class ExerciseSelectionScreen(BoxLayout):
     # ═══════════════════════════════════════════════════════════════
     #  SELECT ALL / NONE
     # ═══════════════════════════════════════════════════════════════
-    def select_all(self):
-        """Select all currently visible exercises."""
-        query = ""
-        if hasattr(self.ids, 'search_input'):
-            query = self.ids.search_input.text.strip().lower()
-
-        # Collect all visible exercise IDs
-        visible_ids = set()
-        for eid, ex in self.all_exercises.items():
-            if self.current_muscle_filter != "All":
-                if ex.get('muscle', '') != self.current_muscle_filter:
-                    continue
-            if self.current_equip_filter != "All":
-                equip = ex.get('equip', '')
-                tags = ex.get('equip_tags', [])
-                if equip != self.current_equip_filter and \
-                   self.current_equip_filter.lower() not in [t.lower() for t in tags]:
-                    continue
-            if query:
-                name = ex.get('name', '').lower()
-                muscle = ex.get('muscle', '').lower()
-                equip = ex.get('equip', '').lower()
-                if query not in name and query not in muscle and query not in equip:
-                    continue
-            visible_ids.add(eid)
-
-        # Merge with existing selection using set to prevent duplicates
-        combined = set(self.selected_exercises) | visible_ids
-        self.selected_exercises = list(combined)
-
-        # Update checkboxes without triggering _on_checkbox
-        self._force_set_all_checkboxes(visible_ids)
-        self._update_count()
-
     def deselect_all(self):
         """Deselect all exercises."""
         self.selected_exercises = []

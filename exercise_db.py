@@ -420,75 +420,75 @@ STRENGTH_EXERCISES = {
 # ============================================================================
 CARDIO_EXERCISES = {
     "cr01": {"name": "Outdoor Run", "muscle": "Cardio", "equip": "Bodyweight",
-             "equip_tags": [], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": [], "track": "cardio", "cardio_sub": "running", "sets": 1, "reps": 1,
              "tip": "Start easy, build pace gradually",
              "alternatives": ["cr02", "cr03"]},
     "cr02": {"name": "Treadmill Run", "muscle": "Cardio", "equip": "Machine",
-             "equip_tags": ["machine"], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": ["machine"], "track": "cardio", "cardio_sub": "running", "sets": 1, "reps": 1,
              "tip": "Use incline for hill simulation",
              "alternatives": ["cr01", "cr03"]},
     "cr03": {"name": "Interval Sprints", "muscle": "Cardio", "equip": "Bodyweight",
-             "equip_tags": [], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": [], "track": "cardio", "cardio_sub": "crossfit", "sets": 1, "reps": 1,
              "tip": "All-out effort on work intervals",
              "alternatives": ["cr01", "cr04"]},
     "cr04": {"name": "Tempo Run", "muscle": "Cardio", "equip": "Bodyweight",
-             "equip_tags": [], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": [], "track": "cardio", "cardio_sub": "running", "sets": 1, "reps": 1,
              "tip": "Comfortably hard pace, 80-85% max HR",
              "alternatives": ["cr01", "cr05"]},
     "cr05": {"name": "Long Slow Distance", "muscle": "Cardio", "equip": "Bodyweight",
-             "equip_tags": [], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": [], "track": "cardio", "cardio_sub": "running", "sets": 1, "reps": 1,
              "tip": "Easy conversational pace, build endurance",
              "alternatives": ["cr01", "cr04"]},
     "cr06": {"name": "Road Cycling", "muscle": "Cardio", "equip": "Bike",
-             "equip_tags": ["bike"], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": ["bike"], "track": "cardio", "cardio_sub": "running", "sets": 1, "reps": 1,
              "tip": "Maintain steady cadence 80-100 RPM",
              "alternatives": ["cr07", "cr08"]},
     "cr07": {"name": "Stationary Bike", "muscle": "Cardio", "equip": "Machine",
-             "equip_tags": ["machine"], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": ["machine"], "track": "cardio", "cardio_sub": "running", "sets": 1, "reps": 1,
              "tip": "Adjust resistance for intervals",
              "alternatives": ["cr06", "cr08"]},
     "cr08": {"name": "Spin Class", "muscle": "Cardio", "equip": "Machine",
-             "equip_tags": ["machine"], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": ["machine"], "track": "cardio", "cardio_sub": "running", "sets": 1, "reps": 1,
              "tip": "Follow instructor, vary resistance",
              "alternatives": ["cr07", "cr06"]},
     "cr09": {"name": "Rowing Machine", "muscle": "Cardio", "equip": "Machine",
-             "equip_tags": ["machine"], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": ["machine"], "track": "cardio", "cardio_sub": "crossfit", "sets": 1, "reps": 1,
              "tip": "Drive with legs first, then pull",
              "alternatives": ["cr07", "cr10"]},
     "cr10": {"name": "Jump Rope", "muscle": "Cardio", "equip": "Bodyweight",
-             "equip_tags": [], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": [], "track": "cardio", "cardio_sub": "crossfit", "sets": 1, "reps": 1,
              "tip": "Light on feet, consistent rhythm",
              "alternatives": ["cr09", "cr03"]},
     "cr11": {"name": "Stair Climber", "muscle": "Cardio", "equip": "Machine",
-             "equip_tags": ["machine"], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": ["machine"], "track": "cardio", "cardio_sub": "running", "sets": 1, "reps": 1,
              "tip": "Don't lean on handles, steady pace",
              "alternatives": ["cr07", "cr06"]},
     "cr12": {"name": "Elliptical", "muscle": "Cardio", "equip": "Machine",
-             "equip_tags": ["machine"], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": ["machine"], "track": "cardio", "cardio_sub": "running", "sets": 1, "reps": 1,
              "tip": "Low impact, good for recovery",
              "alternatives": ["cr07", "cr09"]},
     "cr13": {"name": "Swimming", "muscle": "Cardio", "equip": "Bodyweight",
-             "equip_tags": [], "track": "cardio", "sets": 1, "reps": 1,
+             "equip_tags": [], "track": "cardio", "cardio_sub": "running", "sets": 1, "reps": 1,
              "tip": "Full body, focus on stroke technique",
              "alternatives": ["cr01", "cr09"]},
     "cr14": {"name": "Burpees", "muscle": "Cardio", "equip": "Bodyweight",
-             "equip_tags": [], "track": "cardio", "sets": 3, "reps": 10,
+             "equip_tags": [], "track": "cardio", "cardio_sub": "crossfit", "sets": 3, "reps": 10,
              "tip": "Explosive movement, full range",
              "alternatives": ["cr03", "cr10"]},
     "cr15": {"name": "Box Jump", "muscle": "Cardio", "equip": "Bodyweight",
-             "equip_tags": [], "track": "cardio", "sets": 3, "reps": 8,
+             "equip_tags": [], "track": "cardio", "cardio_sub": "crossfit", "sets": 3, "reps": 8,
              "tip": "Soft landing, full hip extension",
              "alternatives": ["cr14", "cr03"]},
     "cr16": {"name": "Battle Ropes", "muscle": "Cardio", "equip": "Bodyweight",
-             "equip_tags": [], "track": "cardio", "sets": 3, "reps": 30,
+             "equip_tags": [], "track": "cardio", "cardio_sub": "crossfit", "sets": 3, "reps": 30,
              "tip": "Alternating waves, core tight",
              "alternatives": ["cr14", "cr09"]},
     "cr17": {"name": "High Knees", "muscle": "Cardio", "equip": "Bodyweight",
-             "equip_tags": [], "track": "cardio", "sets": 3, "reps": 30,
+             "equip_tags": [], "track": "cardio", "cardio_sub": "crossfit", "sets": 3, "reps": 30,
              "tip": "Knees to waist height, fast turnover",
              "alternatives": ["cr03", "cr14"]},
     "cr18": {"name": "Sled Push", "muscle": "Cardio", "equip": "Machine",
-             "equip_tags": ["machine"], "track": "cardio", "sets": 4, "reps": 40,
+             "equip_tags": ["machine"], "track": "cardio", "cardio_sub": "crossfit", "sets": 4, "reps": 40,
              "tip": "Low stance, drive through legs",
              "alternatives": ["cr14", "cr15"]},
 }
@@ -685,30 +685,6 @@ def get_alternatives(exercise_id, available_equipment=None):
 def get_split_for_profile(profile_type, goal):
     """Get workout split based on profile and goal."""
     return WORKOUT_SPLITS.get(goal, WORKOUT_SPLITS.get("Build Muscle"))
-
-def exercise_uses_weight(exercise_id):
-    """Check if an exercise uses external weights."""
-    all_ex = get_all_exercises()
-    if exercise_id in all_ex:
-        equip = all_ex[exercise_id].get('equip', '')
-        return equip in ['Barbell', 'Dumbbells', 'Cable', 'Machine']
-    return False
-
-def exercise_uses_weight_by_name(exercise_name):
-    """Check if an exercise uses weights by name."""
-    all_ex = get_all_exercises()
-    for eid, ex in all_ex.items():
-        if ex.get('name', '').lower() == exercise_name.lower():
-            return ex.get('equip', '') in ['Barbell', 'Dumbbells', 'Cable', 'Machine']
-    return False
-
-def exercise_uses_barbell_by_name(exercise_name):
-    """Check if an exercise uses a barbell."""
-    all_ex = get_all_exercises()
-    for eid, ex in all_ex.items():
-        if ex.get('name', '').lower() == exercise_name.lower():
-            return ex.get('equip', '') == 'Barbell'
-    return False
 
 def search_exercises(query):
     """Search exercises by name (case-insensitive)."""

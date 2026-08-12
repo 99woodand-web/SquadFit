@@ -5,6 +5,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import StringProperty, NumericProperty
 import json
 import os
+_POPUP_BG = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'popup_bg.png')
 
 class OnboardingScreen(BoxLayout):
     """Onboarding screen for new users to set up their profile."""
@@ -260,7 +261,8 @@ class OnboardingScreen(BoxLayout):
             title="", content=content,
             size_hint=(0.88, None), height=dp(340),
             auto_dismiss=True,
-            background_color=(0.1, 0.1, 0.1, 0.95)
+            background=_POPUP_BG,
+            background_color=(0.1, 0.1, 0.1, 1)
         )
         self.regeneration_popup.open()
 
@@ -316,14 +318,4 @@ class OnboardingScreen(BoxLayout):
         except Exception as e:
             print(f"[Navigation Error] {e}")
     
-    def open_exercise_selection(self):
-        """Navigate to exercise selection screen."""
-        self.save_profile()  # Save current progress first
-        try:
-            from kivy.app import App
-            app = App.get_running_app()
-            if hasattr(app, 'sm'):
-                app.sm.current = 'exercises'
-                print("[Onboarding] Navigated to Exercise Selection")
-        except Exception as e:
-            print(f"[Navigation Error] {e}")
+

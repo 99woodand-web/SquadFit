@@ -91,10 +91,19 @@ EQUIPMENT_PROFILES = {
         "available": ["Barbell", "Dumbbells", "Bench", "Bodyweight", "Bands"],
         "description": "Limited equipment - barbell, dumbbells, bench"
     },
+    "running": {
+        "name": "Running & Cycling",
+        "available": ["Bodyweight", "Machine", "Bike"],
+        "cardio_only": True,
+        "cardio_sub": "running",
+        "description": "Running, cycling, and endurance focus"
+    },
     "cardio_only": {
-        "name": "Cardio Only",
-        "available": ["Bodyweight", "Bike", "Machine"],
-        "description": "Running and cycling focus"
+        "name": "Cardio / CrossFit",
+        "available": ["Bodyweight", "Machine", "Bike"],
+        "cardio_only": True,
+        "cardio_sub": "crossfit",
+        "description": "CrossFit, HIIT, and high-intensity cardio"
     }
 }
 
@@ -144,7 +153,24 @@ class PlanRegenerator:
         equip_profile = EQUIPMENT_PROFILES.get(environment, EQUIPMENT_PROFILES["commercial"])
 
         # Get available exercises based on equipment
-        available = self._get_available_exercises(equip_profile["available"])
+        is_cardio_only = equip_profile.get("cardio_only", False)
+        cardio_sub = equip_profile.get("cardio_sub")
+        available = self._get_available_exercises(
+            equip_profile["available"],
+            cardio_only=is_cardio_only,
+            cardio_sub=cardio_sub
+        )
+
+        # If cardio_only environment, override split type to cardio-focused
+        if is_cardio_only:
+            config = dict(config)  # Don't mutate original
+            config["split_type"] = "cardio_focused"
+            if cardio_sub == "running":
+                config["name"] = "Running Program"
+                config["description"] = "Running, cycling, and endurance training"
+            else:
+                config["name"] = "CrossFit Program"
+                config["description"] = "High-intensity functional training"
 
         # Generate the weekly schedule
         days = self._generate_weekly_schedule(config, available, goal)
@@ -168,40 +194,48 @@ class PlanRegenerator:
 
         return plan
 
-    def _get_available_exercises(self, equipment_list):
-        """Filter exercises by available equipment."""
+    def _get_available_exercises(self, equipment_list, cardio_only=False, cardio_sub=None):
+        """Filter exercises by available equipment.
+        
+        When cardio_only=True, only include exercises with track='cardio'.
+        When cardio_sub is set, further filter to that sub-category
+        (e.g., 'running' for endurance, 'crossfit' for HIIT).
+        """
         available = []
         for eid, ex in self.all_exercises.items():
             equip = ex.get("equip", "")
             tags = ex.get("equip_tags", [])
+            track = ex.get("track", "strength")
 
             # Check if exercise is available with current equipment
-            if equip in equipment_list or equip == "Bodyweight":
-                available.append({
-                    "id": eid,
-                    "name": ex.get("name", ""),
-                    "muscle": ex.get("muscle", ""),
-                    "equip": equip,
-                    "compound": ex.get("compound", False),
-                    "sets": ex.get("sets", 3),
-                    "reps": ex.get("reps", 10),
-                    "tip": ex.get("tip", ""),
-                    "track": ex.get("track", "strength"),
-                    "difficulty": ex.get("difficulty", "Intermediate")
-                })
-            elif any(t in equipment_list for t in tags):
-                available.append({
-                    "id": eid,
-                    "name": ex.get("name", ""),
-                    "muscle": ex.get("muscle", ""),
-                    "equip": equip,
-                    "compound": ex.get("compound", False),
-                    "sets": ex.get("sets", 3),
-                    "reps": ex.get("reps", 10),
-                    "tip": ex.get("tip", ""),
-                    "track": ex.get("track", "strength"),
-                    "difficulty": ex.get("difficulty", "Intermediate")
-                })
+            equip_match = equip in equipment_list or equip == "Bodyweight"
+            tag_match = any(t in equipment_list for t in tags)
+
+            if not equip_match and not tag_match:
+                continue
+
+            # If cardio_only, exclude strength exercises
+            if cardio_only and track == "strength":
+                continue
+
+            # If sub-category specified, filter to that type
+            if cardio_sub:
+                ex_sub = ex.get("cardio_sub", "")
+                if track == "cardio" and ex_sub != cardio_sub:
+                    continue
+
+            available.append({
+                "id": eid,
+                "name": ex.get("name", ""),
+                "muscle": ex.get("muscle", ""),
+                "equip": equip,
+                "compound": ex.get("compound", False),
+                "sets": ex.get("sets", 3),
+                "reps": ex.get("reps", 10),
+                "tip": ex.get("tip", ""),
+                "track": track,
+                "difficulty": ex.get("difficulty", "Intermediate")
+            })
 
         return available
 
@@ -496,8 +530,9 @@ class PlanRegenerator:
     def _generate_cardio(self, muscle_groups, ex_per_day, rest_days, cardio_mix, available):
         """Generate cardio-focused (running/cycling) split."""
         cardio = [e for e in available if e["track"] == "cardio"]
-        legs = muscle_groups.get("Legs", [])
-        core = muscle_groups.get("Core", [])
+        # Only use bodyweight exercises for cross-training — no machines or weights
+        bodyweight = [e for e in available if e["equip"] == "Bodyweight" and e["track"] != "cardio"]
+        core = [e for e in muscle_groups.get("Core", []) if e["equip"] == "Bodyweight"]
 
         schedule = {}
 
@@ -515,11 +550,12 @@ class PlanRegenerator:
             "exercises": [e["name"] for e in cardio[:3]][:ex_per_day]
         }
 
-        # Wednesday: Cross Training
+        # Wednesday: Active Recovery — easy cardio + bodyweight
+        recovery = [e for e in cardio if e["equip"] == "Bodyweight"]
         schedule[2] = {
-            "name": "Cross Training",
-            "focus": "Leg Strength & Core",
-            "exercises": [e["name"] for e in legs[:3] + core[:1]][:ex_per_day]
+            "name": "Active Recovery",
+            "focus": "Light Movement & Mobility",
+            "exercises": [e["name"] for e in recovery[:2] + bodyweight[:2]][:ex_per_day]
         }
 
         # Thursday: Tempo Run
@@ -577,12 +613,17 @@ class PlanRegenerator:
 
         return selected[:count]
 
+    def _get_plan_path(self):
+        """Get the correct path for calendar_data.json."""
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), "calendar_data.json")
+
     def save_plan(self, plan):
         """Save the generated plan to calendar_data.json."""
         try:
-            with open("calendar_data.json", "w") as f:
+            path = self._get_plan_path()
+            with open(path, "w") as f:
                 json.dump(plan, f, indent=2)
-            print(f"[PlanRegenerator] Saved plan: {plan['goal_name']}")
+            print(f"[PlanRegenerator] Saved plan to {path}: {plan['goal_name']}")
             return True
         except Exception as e:
             print(f"[PlanRegenerator] Error saving plan: {e}")
@@ -591,8 +632,9 @@ class PlanRegenerator:
     def load_plan(self):
         """Load the current plan from calendar_data.json."""
         try:
-            if os.path.exists("calendar_data.json"):
-                with open("calendar_data.json", "r") as f:
+            path = self._get_plan_path()
+            if os.path.exists(path):
+                with open(path, "r") as f:
                     return json.load(f)
         except Exception:
             pass

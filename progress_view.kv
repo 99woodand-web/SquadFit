@@ -39,8 +39,17 @@
             bold: True
             color: app.accent_color
 
+        MDIconButton:
+            icon: "export"
+            icon_size: '20sp'
+            theme_text_color: "Custom"
+            text_color: app.accent_color
+            size_hint_x: None
+            width: dp(40)
+            on_release: animations.button_flash(self); root.export_history_csv()
+
         Widget:
-            size_hint_x: 0.3
+            size_hint_x: 0.2
 
     # ═══ TAB SELECTOR ═══
     BoxLayout:

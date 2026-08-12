@@ -102,7 +102,6 @@ _kv_files = [
     "onboarding_view.kv",
     "calendar_view.kv",
     "workout_view.kv",
-    "settings_view.kv",
     "exercise_selection_view.kv",
     "progress_view.kv",
     "ai_coach_view.kv",
@@ -148,13 +147,6 @@ except Exception as e:
     raise
 
 try:
-    from settings_view import SettingsScreen
-    _log_crash("Imported: SettingsScreen")
-except Exception as e:
-    _log_crash(f"FAILED import SettingsScreen: {e}")
-    raise
-
-try:
     from exercise_selection_view import ExerciseSelectionScreen
     _log_crash("Imported: ExerciseSelectionScreen")
 except Exception as e:
@@ -170,7 +162,8 @@ except Exception as e:
 
 try:
     from ai_coach_view import AICoachScreen
-    _log_crash("Imported: AICoachScreen")
+    from stretch_view import StretchView
+    _log_crash("Imported: AICoachScreen + StretchView")
 except Exception as e:
     _log_crash(f"FAILED import AICoachScreen: {e}")
     raise
@@ -216,11 +209,6 @@ class WorkoutScreen(Screen):
         super().__init__(**kwargs)
         self.add_widget(WorkoutConsoleScreen())
 
-class SettingsScreenWrapper(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.add_widget(SettingsScreen())
-
 class ExerciseSelectionScreenWrapper(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -234,7 +222,13 @@ class ProgressScreenWrapper(Screen):
 class AICoachScreenWrapper(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.add_widget(AICoachScreen())
+        self._coach = AICoachScreen()
+        self.add_widget(self._coach)
+
+    def on_pre_enter(self):
+        """Refresh the dashboard every time the user navigates here."""
+        if hasattr(self._coach, '_build_dashboard'):
+            self._coach._build_dashboard()
 
 class SquadFitApp(MDApp):
     # Dynamic color properties - updated by ThemeManager
@@ -264,10 +258,10 @@ class SquadFitApp(MDApp):
             ("onboarding", OnboardingScreenWrapper),
             ("calendar", CalendarScreen),
             ("workout", WorkoutScreen),
-            ("settings", SettingsScreenWrapper),
             ("exercises", ExerciseSelectionScreenWrapper),
             ("progress", ProgressScreenWrapper),
             ("aicoach", AICoachScreenWrapper),
+            ("stretch", StretchView),
         ]
 
         for name, screen_cls in screens:

@@ -24,14 +24,14 @@ MUSCLE_GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Biceps", "Triceps", "Cor
 
 # How much recovery is lost per set trained (rough sports science model)
 DEPLETION_PER_SET = {
-    "Chest": 12, "Back": 14, "Legs": 16, "Shoulders": 10,
-    "Biceps": 8, "Triceps": 8, "Core": 6, "Cardio": 5
+    "Chest": 2, "Back": 2, "Legs": 3, "Shoulders": 2,
+    "Biceps": 1.5, "Triceps": 1.5, "Core": 1, "Cardio": 1
 }
 
 # Daily recovery rate (% per day since last trained)
 RECOVERY_RATE_PER_DAY = {
-    "Chest": 28, "Back": 25, "Legs": 22, "Shoulders": 30,
-    "Biceps": 35, "Triceps": 35, "Core": 40, "Cardio": 45
+    "Chest": 25, "Back": 25, "Legs": 22, "Shoulders": 28,
+    "Biceps": 35, "Triceps": 35, "Core": 40, "Cardio": 50
 }
 
 # Compound exercises that fatigue multiple muscle groups
@@ -388,67 +388,66 @@ class AICoachEngine:
 
     def get_progressive_overload_suggestions(self):
         """
-        Analyze workout history and suggest weight/rep increases where
+        Analyze workout history and suggest rep increases where
         the user has consistently hit their targets.
+        Now reps-only (no weight tracking).
 
-        Returns: list of dicts with exercise, current, suggested, reasoning
+        Returns: list of dicts with exercise, current_reps, suggested_reps, reasoning
         """
         suggestions = []
 
         for ex_name, sessions in self.workout_history.items():
-            if len(sessions) < 3:
+            if len(sessions) < 2:
                 continue
 
-            # Get recent sessions with numeric weights
+            # Get recent sessions with numeric reps (reps-only mode)
             recent = []
             for s in sessions:
-                w = s.get('weight', 0)
-                r = s.get('reps', 0)
-                if isinstance(w, (int, float)) and isinstance(r, (int, float)) and w > 0:
-                    recent.append({'weight': w, 'reps': r})
+                r = s.get('reps', s.get('distance', '0'))
+                try:
+                    # Handle '10 reps' or plain '10'
+                    reps_num = int(str(r).replace(' reps', '').replace(' km', '').strip())
+                    if reps_num > 0:
+                        recent.append(reps_num)
+                except (ValueError, TypeError):
+                    # Try total reps if multiple sets
+                    try:
+                        reps_num = int(r)
+                        if reps_num > 0:
+                            recent.append(reps_num)
+                    except:
+                        pass
 
             if len(recent) < 2:
                 continue
 
-            # Check if they've hit the same weight for 2+ sessions with good reps
-            last_weight = recent[-1]['weight']
-            last_reps = recent[-1]['reps']
+            last_reps = recent[-1]
+            avg_reps = sum(recent) / len(recent)
 
-            # Count sessions at this weight
-            sessions_at_weight = [s for s in recent if s['weight'] == last_weight]
-
-            if len(sessions_at_weight) >= 2:
-                # Check if they hit 8+ reps (suggesting they can handle more)
-                avg_reps = sum(s['reps'] for s in sessions_at_weight) / len(sessions_at_weight)
-
-                if avg_reps >= 8:
-                    # Suggest weight increase
-                    if last_weight >= 100:
-                        increase = 2.5
-                    elif last_weight >= 60:
-                        increase = 2.5
-                    else:
-                        increase = 1.25
-
-                    new_weight = last_weight + increase
-                    suggestions.append({
-                        'exercise': ex_name,
-                        'current_weight': last_weight,
-                        'suggested_weight': new_weight,
-                        'current_reps': int(avg_reps),
-                        'increase': increase,
-                        'reasoning': f"Avg {int(avg_reps)} reps at {last_weight}kg over {len(sessions_at_weight)} sessions. Ready for +{increase}kg."
-                    })
-                elif avg_reps < 6:
-                    # Suggest volume increase (more reps at same weight)
-                    suggestions.append({
-                        'exercise': ex_name,
-                        'current_weight': last_weight,
-                        'suggested_weight': last_weight,
-                        'current_reps': int(avg_reps),
-                        'target_reps': int(avg_reps) + 2,
-                        'reasoning': f"Avg {int(avg_reps)} reps at {last_weight}kg. Focus on adding 2 more reps before increasing weight."
-                    })
+            if last_reps >= 15:
+                # Hit 15+ reps consistently — suggest adding sets or harder variation
+                suggestions.append({
+                    'exercise': ex_name,
+                    'current_reps': last_reps,
+                    'suggested_reps': last_reps,
+                    'reasoning': f"{last_reps} reps — strong endurance. Try a harder variation or add a set."
+                })
+            elif last_reps >= 12 and avg_reps >= 10:
+                # Consistently hitting 12+, try harder variation
+                suggestions.append({
+                    'exercise': ex_name,
+                    'current_reps': last_reps,
+                    'suggested_reps': last_reps + 2,
+                    'reasoning': f"Avg {int(avg_reps)} reps over {len(recent)} sessions. Push for {last_reps + 2} reps."
+                })
+            elif avg_reps < 8:
+                # Low reps — focus on building up
+                suggestions.append({
+                    'exercise': ex_name,
+                    'current_reps': last_reps,
+                    'suggested_reps': last_reps + 1,
+                    'reasoning': f"Avg {int(avg_reps)} reps. Add 1 rep per set to build volume."
+                })
 
         return suggestions
 
@@ -624,12 +623,27 @@ class AICoachEngine:
         overload = self.get_progressive_overload_suggestions()
         overload_map = {s['exercise']: s for s in overload}
 
-        # Enrich with overload data
+        # Enrich with overload data (reps-based)
         for ex in selected:
             if ex['name'] in overload_map:
                 ol = overload_map[ex['name']]
-                ex['suggested_weight'] = ol.get('suggested_weight', 0)
+                ex['suggested_reps'] = ol.get('suggested_reps', ex.get('reps', 10))
                 ex['overload_reasoning'] = ol.get('reasoning', '')
+
+        # Add superset pairing — pair isolation exercises as A1/A2
+        iso_indices = [i for i, e in enumerate(selected) if not e.get('compound')]
+        if len(iso_indices) >= 2:
+            selected[iso_indices[0]]['superset_id'] = 'A'
+            selected[iso_indices[1]]['superset_id'] = 'A'
+            if len(iso_indices) >= 4:
+                selected[iso_indices[2]]['superset_id'] = 'B'
+                selected[iso_indices[3]]['superset_id'] = 'B'
+        else:
+            # No isolation? Pair last 2 compound exercises as a superset
+            comp_indices = [i for i, e in enumerate(selected) if e.get('compound')]
+            if len(comp_indices) >= 2:
+                selected[comp_indices[-2]]['superset_id'] = 'A'
+                selected[comp_indices[-1]]['superset_id'] = 'A'
 
         workout_name = " & ".join(target_muscles) + " Focus"
 

@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 
 
-TEMPLATE_FILE = "workout_templates.json"
+TEMPLATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workout_templates.json")
 
 
 class WorkoutTemplate:
@@ -176,3 +176,51 @@ class TemplateManager:
     @property
     def count(self) -> int:
         return len(self.templates)
+
+    def ensure_defaults(self):
+        """Create starter templates if none exist."""
+        if self.templates:
+            return
+
+        defaults = [
+            {
+                "name": "Full Body Starter",
+                "day_type": "Gym",
+                "focus": "Full Body",
+                "exercises": [
+                    {"exercise_name": "Flat Bench Press", "target_sets": 3, "target_reps": 10},
+                    {"exercise_name": "Barbell Bent-Over Row", "target_sets": 3, "target_reps": 10},
+                    {"exercise_name": "Barbell Back Squat", "target_sets": 3, "target_reps": 10},
+                    {"exercise_name": "Military Press", "target_sets": 3, "target_reps": 10},
+                    {"exercise_name": "Dumbbell Curl", "target_sets": 2, "target_reps": 12},
+                ]
+            },
+            {
+                "name": "Push Day",
+                "day_type": "Gym",
+                "focus": "Chest & Shoulders",
+                "exercises": [
+                    {"exercise_name": "Flat Bench Press", "target_sets": 4, "target_reps": 10},
+                    {"exercise_name": "Incline Bench Press", "target_sets": 3, "target_reps": 10},
+                    {"exercise_name": "Cable Fly", "target_sets": 3, "target_reps": 12},
+                    {"exercise_name": "Military Press", "target_sets": 3, "target_reps": 10},
+                    {"exercise_name": "Tricep Pushdown", "target_sets": 3, "target_reps": 12},
+                ]
+            },
+            {
+                "name": "Pull Day",
+                "day_type": "Gym",
+                "focus": "Back & Biceps",
+                "exercises": [
+                    {"exercise_name": "Barbell Bent-Over Row", "target_sets": 4, "target_reps": 10},
+                    {"exercise_name": "Lat Pulldown", "target_sets": 3, "target_reps": 12},
+                    {"exercise_name": "Cable Seated Row", "target_sets": 3, "target_reps": 12},
+                    {"exercise_name": "Dumbbell Curl", "target_sets": 3, "target_reps": 12},
+                    {"exercise_name": "Hammer Curl", "target_sets": 2, "target_reps": 12},
+                ]
+            },
+        ]
+
+        for d in defaults:
+            self.save_template(d["name"], d["day_type"], d["focus"], d["exercises"])
+        print(f"[TemplateManager] Created {len(defaults)} starter templates")

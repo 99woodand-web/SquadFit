@@ -23,6 +23,10 @@ class AICoachScreen(BoxLayout):
     def _init_dashboard(self, dt):
         self._build_dashboard()
 
+    def on_pre_enter(self):
+        """Refresh dashboard every time user navigates to this screen."""
+        self._build_dashboard()
+
     def _build_dashboard(self):
         """Build the full AI coaching dashboard."""
         from ai_coach import AICoachEngine
@@ -31,9 +35,6 @@ class AICoachScreen(BoxLayout):
 
         content = self.ids.content_area
         content.clear_widgets()
-
-        # 0. Exercise Filter (My Exercises)
-        self._build_exercise_filter(content)
 
         # 1. Today's Recommendation
         self._build_recommendation_card(content, data['today_recommendation'], data['generated_workout'])
@@ -56,119 +57,6 @@ class AICoachScreen(BoxLayout):
         self._build_form_tips_section(content, data['generated_workout']['exercises'], engine)
 
     # ═══════════════════════════════════════════════════════════════
-    #  EXERCISE FILTER
-    # ═══════════════════════════════════════════════════════════════
-
-    def _build_exercise_filter(self, container):
-        """Build the exercise filter section - lets users pick which exercises the AI uses."""
-        import json
-        import os
-        from exercise_db import get_all_exercises, get_muscle_groups
-
-        card = self._make_card(container, height=dp(200))
-
-        # Title
-        card.add_widget(self._section_label("MY EXERCISES"))
-
-        # Load current selection
-        selected = []
-        try:
-            if os.path.exists("user_profile.json"):
-                with open("user_profile.json", "r") as f:
-                    profile = json.load(f)
-                selected = profile.get("selected_exercises", [])
-        except Exception:
-            pass
-
-        # Count label
-        all_ex = get_all_exercises()
-        count_label = Label(
-            text=f"[color=AAAAAA]{len(selected)} of {len(all_ex)} exercises selected[/color]",
-            font_size='11sp', markup=True, color=(0.6, 0.6, 0.6, 1),
-            size_hint_y=None, height=dp(20),
-            padding=[dp(4), 0]
-        )
-        card.add_widget(count_label)
-
-        # Description
-        desc = Label(
-            text="AI will only use exercises you select below.",
-            font_size='10sp', color=(0.5, 0.5, 0.5, 1),
-            size_hint_y=None, height=dp(16),
-            padding=[dp(4), 0]
-        )
-        card.add_widget(desc)
-
-        # Muscle group filter buttons (horizontal scroll)
-        from kivy.uix.scrollview import ScrollView
-        from kivy.uix.boxlayout import BoxLayout
-
-        muscle_scroll = ScrollView(
-            size_hint_y=None, height=dp(32),
-            do_scroll_x=True, do_scroll_y=False, bar_width=0
-        )
-        muscle_row = BoxLayout(
-            orientation='horizontal', size_hint_x=None,
-            width=self.minimum_width, spacing=dp(6)
-        )
-        muscles = ["All"] + get_muscle_groups()
-        for muscle in muscles:
-            btn = Button(
-                text=muscle.upper(),
-                font_size='9sp', bold=True,
-                size_hint_x=None, width=dp(65),
-                background_normal='', background_down='',
-                background_color=(0, 0, 0, 0),
-                color=(0.2, 1.0, 0.6, 1) if muscle == "All" else (0.7, 0.7, 0.7, 1),
-                border=(0, 0, 0, 0)
-            )
-            with btn.canvas.before:
-                Color(0.2, 1.0, 0.6, 0.2) if muscle == "All" else Color(0.18, 0.18, 0.18, 1)
-                RoundedRectangle(pos=btn.pos, size=btn.size, radius=[dp(12)])
-            btn.bind(pos=lambda inst, val: self._draw_filter_bg(inst))
-            btn.bind(size=lambda inst, val: self._draw_filter_bg(inst))
-            muscle_row.add_widget(btn)
-        muscle_scroll.add_widget(muscle_row)
-        card.add_widget(muscle_scroll)
-
-        # Button to open full exercise selection
-        btn_select = Button(
-            text="OPEN EXERCISE LIBRARY", bold=True, font_size='12sp',
-            size_hint_y=None, height=dp(36),
-            background_normal='', background_down='',
-            background_color=(0, 0, 0, 0), color=(0.0, 0.8, 1.0, 1),
-            border=(0, 0, 0, 0)
-        )
-        with btn_select.canvas.before:
-            Color(0.0, 0.8, 1.0, 0.15)
-            RoundedRectangle(pos=btn_select.pos, size=btn_select.size, radius=[dp(14)])
-        btn_select.bind(pos=lambda inst, val: self._draw_cyan_pill(inst))
-        btn_select.bind(size=lambda inst, val: self._draw_cyan_pill(inst))
-        btn_select.bind(on_press=lambda x: self._open_exercise_library())
-        card.add_widget(btn_select)
-
-    def _draw_filter_bg(self, btn):
-        """Draw rounded background for filter buttons."""
-        btn.canvas.before.clear()
-        with btn.canvas.before:
-            Color(0.18, 0.18, 0.18, 1)
-            RoundedRectangle(pos=btn.pos, size=btn.size, radius=[dp(12)])
-
-    def _draw_cyan_pill(self, btn):
-        """Draw cyan pill background for buttons."""
-        btn.canvas.before.clear()
-        with btn.canvas.before:
-            Color(0.0, 0.8, 1.0, 0.15)
-            RoundedRectangle(pos=btn.pos, size=btn.size, radius=[dp(14)])
-
-    def _open_exercise_library(self):
-        """Navigate to exercise selection screen."""
-        from kivy.app import App
-        app = App.get_running_app()
-        if hasattr(app, 'sm'):
-            app.sm.current = 'exercises'
-
-    # ═══════════════════════════════════════════════════════════════
     #  SECTION BUILDERS
     # ═══════════════════════════════════════════════════════════════
 
@@ -179,11 +67,23 @@ class AICoachScreen(BoxLayout):
         # Title
         card.add_widget(self._section_label("TODAY'S AI RECOMMENDATION"))
 
-        # Recommendation text
-        muscles = ", ".join(recommendation['muscles'])
+        # Build colored muscle list with recovery percentages inline
+        recovery = recommendation.get('recovery', {})
+        muscle_parts = []
+        for m in recommendation['muscles']:
+            pct = recovery.get(m, {}).get('recovery', 50)
+            if pct >= 80:
+                color_hex = '00FF99'  # green
+            elif pct >= 50:
+                color_hex = 'FFD700'  # yellow
+            else:
+                color_hex = 'FF6666'  # red
+            muscle_parts.append(f'[color={color_hex}]{m} {pct}%[/color]')
+        muscle_text = ', '.join(muscle_parts)
+
         rec_label = Label(
-            text=f"Train: [color=00FF99]{muscles}[/color]",
-            font_size='16sp', bold=True, markup=True,
+            text=f"Train: {muscle_text}",
+            font_size='14sp', bold=True, markup=True,
             color=(1, 1, 1, 1), halign='left',
             size_hint_y=None, height=dp(28),
             padding=[dp(4), 0]
@@ -330,10 +230,10 @@ class AICoachScreen(BoxLayout):
         return row
 
     def _build_overload_section(self, container, suggestions):
-        """Build progressive overload suggestions."""
+        """Build progressive overload suggestions (reps-based)."""
         card = self._make_card(container, height=dp(60 + len(suggestions) * 50))
 
-        card.add_widget(self._section_label("PROGRESSIVE OVERLOAD SUGGESTIONS"))
+        card.add_widget(self._section_label("PROGRESSIVE OVERLOAD"))
 
         for s in suggestions:
             row = BoxLayout(
@@ -342,15 +242,16 @@ class AICoachScreen(BoxLayout):
                 padding=[dp(4), 0]
             )
 
-            # Exercise + weight
-            weight_text = f"{s['exercise']}: {s['current_weight']}kg"
-            if s.get('suggested_weight') and s['suggested_weight'] != s['current_weight']:
-                weight_text += f"  ->  [color=00FF99]{s['suggested_weight']}kg[/color]"
-            elif s.get('target_reps'):
-                weight_text += f"  ->  [color=00FF99]{s['target_reps']} reps[/color]"
+            # Exercise + reps suggestion
+            current = s.get('current_reps', 0)
+            suggested = s.get('suggested_reps', current)
+            if suggested > current:
+                reps_text = f"{s['exercise']}: {current} reps  ->  [color=00FF99]{suggested} reps[/color]"
+            else:
+                reps_text = f"{s['exercise']}: {current} reps"
 
             row.add_widget(Label(
-                text=weight_text, font_size='12sp', bold=True, markup=True,
+                text=reps_text, font_size='12sp', bold=True, markup=True,
                 color=(1, 1, 1, 1), halign='left',
                 size_hint_y=None, height=dp(20),
                 text_size=(None, None)

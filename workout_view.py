@@ -7,12 +7,13 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.slider import Slider
+from kivy.uix.textinput import TextInput
 from kivy.properties import NumericProperty, StringProperty, BooleanProperty
 from kivy.clock import Clock
 from kivy.animation import Animation
 from kivy.metrics import dp
 from kivy.graphics import Color, RoundedRectangle, Line
-
+_POPUP_BG = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'popup_bg.png')
 
 class WorkoutConsoleScreen(BoxLayout):
     """Single-page scrollable workout sheet with all exercises visible."""
@@ -30,6 +31,7 @@ class WorkoutConsoleScreen(BoxLayout):
         self.logged_sets = []          # All logged set data
         self.set_widgets = {}          # Maps (ex_idx, set_idx) -> widget references
         self.exercise_cards = []       # List of card widgets in order
+        self._is_editing = False        # True when editing a past workout
         self.total_sets = 0
         self.completed_sets = 0
         self.workout_name = "Workout"
@@ -38,6 +40,8 @@ class WorkoutConsoleScreen(BoxLayout):
         self._history_date = None      # Date when workout was completed
         self._history_sets = []        # Sets from completed session
         self._history_elapsed = 0      # Duration of completed session
+
+
 
     # ═══════════════════════════════════════════════════════════════
     #  WORKOUT HISTORY - Load/save previous performances
@@ -130,10 +134,41 @@ class WorkoutConsoleScreen(BoxLayout):
             print(f"[Workout] History check error: {e}")
         return False, 0, []
 
-    def _save_completion(self):
-        """Save workout completion record for today."""
+    def _check_history_for_date(self, workout_name, workout_date=None):
+        """
+        Check if this workout was already completed on the specified date.
+        If no date provided, defaults to today.
+        Returns (is_completed, elapsed_seconds, sets_list) if found.
+        """
         from datetime import datetime
-        today = datetime.now().strftime('%Y-%m-%d')
+        if workout_date is None:
+            workout_date = datetime.now().strftime('%Y-%m-%d')
+        
+        # Check the workout_completions.json file
+        completions_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'workout_completions.json')
+        try:
+            if os.path.exists(completions_path):
+                with open(completions_path, 'r') as f:
+                    content = f.read().strip()
+                    if not content:
+                        return False, 0, []
+                    completions = json.loads(content)
+                if not isinstance(completions, list):
+                    return False, 0, []
+                # Look for the specified date's completion with matching workout name
+                for entry in completions:
+                    if entry.get('date') == workout_date and entry.get('workout_name') == workout_name:
+                        return True, entry.get('elapsed', 0), entry.get('sets', [])
+        except Exception as e:
+            print(f"[Workout] History check error: {e}")
+        return False, 0, []
+
+    def _save_completion(self):
+        """Save workout completion record."""
+        from datetime import datetime
+        # Use the workout's date if editing a past workout, otherwise today
+        # Use the scheduled workout date, not today's date
+        save_date = self._history_date or getattr(self, '_workout_date', None) or datetime.now().strftime('%Y-%m-%d')
         
         completions_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'workout_completions.json')
         try:
@@ -146,19 +181,50 @@ class WorkoutConsoleScreen(BoxLayout):
             if not isinstance(completions, list):
                 completions = []
             
-            # Remove any existing entry for today's workout name
+            # Determine day_of_week from the workout date
+            try:
+                day_of_week = datetime.strptime(save_date, '%Y-%m-%d').weekday()
+            except (ValueError, TypeError):
+                day_of_week = -1
+
+            # Determine workout mode from the calendar
+            workout_mode = 'ai'
+            try:
+                from kivy.app import App
+                app = App.get_running_app()
+                if hasattr(app, 'sm'):
+                    cal = app.sm.get_screen('calendar')
+                    if hasattr(cal, 'children') and cal.children:
+                        cw = cal.children[0]
+                        if hasattr(cw, 'workout_mode'):
+                            workout_mode = cw.workout_mode
+            except Exception:
+                pass
+
+            # Remove existing entry for same date + same day_of_week + same mode
+            # This allows different scheduled days (e.g. Thursday vs Tuesday)
+            # to coexist even if done on the same actual day
             completions = [
                 c for c in completions
-                if not (c.get('date') == today and c.get('workout_name') == self.workout_name)
+                if not (c.get('date') == save_date
+                        and c.get('day_of_week', -1) == day_of_week
+                        and c.get('workout_mode', 'ai') == workout_mode)
             ]
             
-            # Save exercise names for Quick Start
+            # Determine day_of_week from the workout date
+            try:
+                day_of_week = datetime.strptime(save_date, '%Y-%m-%d').weekday()
+            except (ValueError, TypeError):
+                day_of_week = -1
+
             exercise_names = [ex.get('name', '') for ex in self.exercises_data if ex.get('name')]
 
             # Add new completion
             completions.append({
-                'date': today,
+                'date': save_date,
+                'day_of_week': day_of_week,
                 'workout_name': self.workout_name,
+                'workout_mode': workout_mode,
                 'elapsed': self.workout_elapsed,
                 'sets': self.logged_sets,
                 'completed_sets': self.completed_sets,
@@ -168,7 +234,7 @@ class WorkoutConsoleScreen(BoxLayout):
             
             with open(completions_path, 'w') as f:
                 json.dump(completions, f, indent=2)
-            print(f"[Workout] Saved completion for {self.workout_name} on {today}")
+            print(f"[Workout] Saved completion for {self.workout_name} on {save_date}")
         except Exception as e:
             print(f"[Workout] Save completion error: {e}")
 
@@ -217,14 +283,16 @@ class WorkoutConsoleScreen(BoxLayout):
             ex_idx = info['exercise_idx']
             set_idx = info['set_idx']
             was_logged = False
+            logged_val = None
             for s in self._history_sets:
                 if s.get('exercise') == self.exercises_data[ex_idx].get('name', '') and \
                    s.get('set') == set_idx + 1:
                     was_logged = True
+                    logged_val = s.get('reps') or s.get('distance')
                     break
             
             if was_logged:
-                # Mark as completed
+                # Mark as completed and show the actual logged value
                 info['logged'] = True
                 info['check'].text = "DONE"
                 info['check'].color = (0.3, 0.3, 0.3, 1)
@@ -237,6 +305,9 @@ class WorkoutConsoleScreen(BoxLayout):
                 with info['row'].canvas.before:
                     Color(0.15, 0.15, 0.15, 0.5)
                     RoundedRectangle(pos=info['row'].pos, size=info['row'].size, radius=[dp(10)])
+                # Display the actual logged reps/distance, not the default range
+                if logged_val:
+                    info['input'].text = logged_val
                 info['input'].color = (0.4, 0.4, 0.4, 1)
             else:
                 # Not logged - disable the checkmark
@@ -248,39 +319,53 @@ class WorkoutConsoleScreen(BoxLayout):
                 info['check'].color = (0.3, 0.3, 0.3, 1)
 
     def toggle_edit_mode(self):
-        """Switch from history mode back to active edit mode."""
+        """Switch from history mode to edit mode — re-enable all sets for editing."""
         self.screen_mode = 'active'
         self.workout_active = True
-        self.logged_sets = list(self._history_sets)  # Restore previous sets
+        self._is_editing = True
+        self.logged_sets = list(self._history_sets)
         self.completed_sets = len(self.logged_sets)
-        
-        # Restart the workout timer
-        self.timer_event = Clock.schedule_interval(self._tick_workout, 1)
-        
+
+        # Hide the START button — we're editing, not starting fresh
+        if hasattr(self.ids, 'btn_start'):
+            self.ids.btn_start.opacity = 0
+            self.ids.btn_start.disabled = True
+            self.ids.btn_start.height = 0
+            self.ids.btn_start.size_hint_y = None
+
+        # Don't restart the timer — editing an old workout
+
         # Update status
         if hasattr(self.ids, 'lbl_sync_status'):
-            self.ids.lbl_sync_status.text = "Editing workout - tap + to log more sets"
+            self.ids.lbl_sync_status.text = "Editing — tap + to change reps"
         if hasattr(self.ids, 'lbl_sets_completed'):
             self.ids.lbl_sets_completed.text = f"Sets: {self.completed_sets}/{self.total_sets}"
-        
-        # Re-enable all checkmarks that aren't logged
+
+        # Re-enable ALL checkmarks and inputs (logged + unlogged)
+        from kivy.app import App
+        app = App.get_running_app()
         for key, info in self.set_widgets.items():
-            if not info['logged']:
-                info['check'].disabled = False
-                info['check'].canvas.before.clear()
-                from kivy.app import App
-                app = App.get_running_app()
-                with info['check'].canvas.before:
-                    Color(*app.accent_color)
-                    RoundedRectangle(pos=info['check'].pos, size=info['check'].size, radius=[dp(12)])
-                info['check'].color = (0.07, 0.07, 0.07, 1)
-        
-        print(f"[Workout] Switched to edit mode - {self.completed_sets} sets already logged")
+            info['check'].disabled = False
+            info['check'].text = "EDIT" if info['logged'] else "+"
+            info['check'].font_size = '10sp' if info['logged'] else '20sp'
+            info['check'].canvas.before.clear()
+            with info['check'].canvas.before:
+                Color(*app.accent_color)
+                RoundedRectangle(pos=info['check'].pos, size=info['check'].size, radius=[dp(12)])
+            info['check'].color = (0.07, 0.07, 0.07, 1)
+            # Re-enable the input field so reps can be changed
+            info['input'].color = (1, 1, 1, 1)
+            info['input'].disabled = False
+            # Reset row background
+            info['row'].canvas.before.clear()
+            with info['row'].canvas.before:
+                Color(*app.card_bg)
+                RoundedRectangle(pos=info['row'].pos, size=info['row'].size, radius=[dp(10)])
 
     # ═══════════════════════════════════════════════════════════════
     #  LOAD EXERCISES - Build the entire scrollable sheet
     # ═══════════════════════════════════════════════════════════════
-    def load_exercises(self, exercise_list, workout_name="Workout"):
+    def load_exercises(self, exercise_list, workout_name="Workout", workout_date=None):
         """Build the full scrollable workout sheet from exercise list."""
         self.workout_name = workout_name
         self.exercises_data = []
@@ -289,6 +374,7 @@ class WorkoutConsoleScreen(BoxLayout):
         self.completed_sets = 0
         self.workout_active = False
         self.workout_elapsed = 0
+        self._is_editing = False
 
         if self.timer_event:
             self.timer_event.cancel()
@@ -298,11 +384,26 @@ class WorkoutConsoleScreen(BoxLayout):
             self._scroll_anim.cancel(self)
             self._scroll_anim = None
 
-        from exercise_db import get_all_exercises, exercise_uses_weight, exercise_uses_barbell_by_name
+        # Restore START button (edit mode may have hidden it)
+        if hasattr(self.ids, 'btn_start'):
+            self.ids.btn_start.opacity = 1
+            self.ids.btn_start.disabled = False
+            self.ids.btn_start.height = dp(56)
+            self.ids.btn_start.size_hint_y = None
+
+        from exercise_db import get_all_exercises
         all_ex = get_all_exercises()
 
-        # Build exercise data list
-        for ex_name in exercise_list:
+        # Build exercise data list — supports both strings and dicts
+        for item in exercise_list:
+            # Handle dict (with superset_id) or string (name only)
+            if isinstance(item, dict):
+                ex_name = item.get('name', '')
+                superset_id = item.get('superset_id')
+            else:
+                ex_name = str(item)
+                superset_id = None
+
             ex_info = None
             for eid, ex in all_ex.items():
                 if ex.get('name', '').lower() == ex_name.lower():
@@ -311,10 +412,12 @@ class WorkoutConsoleScreen(BoxLayout):
                     break
             if not ex_info:
                 ex_info = {
-                    'name': ex_name, 'muscle': 'Unknown', 'equip': 'Unknown',
-                    'track': 'strength', 'sets': 3, 'reps': 10,
+                    'name': ex_name, 'muscle': 'Unknown', 'equip': 'Unknown', 'track': 'strength', 'sets': 3, 'reps': 10,
                     'equip_tags': [], 'tip': 'Focus on proper form'
                 }
+            # Preserve superset pairing
+            if superset_id:
+                ex_info['superset_id'] = superset_id
             self.exercises_data.append(ex_info)
 
         # Calculate total sets
@@ -329,14 +432,17 @@ class WorkoutConsoleScreen(BoxLayout):
         if hasattr(self.ids, 'lbl_timer_clock'):
             self.ids.lbl_timer_clock.text = "00:00"
 
-        # Check if this workout was already completed today
-        is_completed, elapsed, sets = self._check_history_for_today(workout_name)
+        # Store the workout date for saving later (scheduled day, not today)
+        self._workout_date = workout_date
+
+        # Check if this workout was already completed on the specified date
+        is_completed, elapsed, sets = self._check_history_for_date(workout_name, workout_date)
         if is_completed:
             self.screen_mode = 'history'
-            self._history_date = None
+            self._history_date = workout_date
             self._history_sets = sets
             self._history_elapsed = elapsed
-            print(f"[Workout] Found completed workout for today - entering history mode")
+            print(f"[Workout] Found completed workout for {workout_date} - entering history mode")
             # Enter history mode after a short delay to let UI build
             Clock.schedule_once(lambda dt: self.enter_history_mode(elapsed, sets), 0.3)
         else:
@@ -355,6 +461,7 @@ class WorkoutConsoleScreen(BoxLayout):
         scroll = self.ids.exercise_scroll
         scroll.clear_widgets()
 
+
         self.exercise_cards = []
 
         container = BoxLayout(
@@ -363,17 +470,64 @@ class WorkoutConsoleScreen(BoxLayout):
         )
         container.bind(minimum_height=container.setter('height'))
 
+        # Detect supersets
+        superset_map = self._detect_supersets()
+
         for ex_idx, ex in enumerate(self.exercises_data):
-            card = self._build_exercise_card(ex_idx, ex)
+            card = self._build_exercise_card(ex_idx, ex, superset_map)
             self.exercise_cards.append(card)
             container.add_widget(card)
 
         scroll.add_widget(container)
 
-    def _build_exercise_card(self, ex_idx, ex):
+    def _detect_supersets(self):
+        """
+        Detect superset pairs in the exercise list.
+        Returns dict: {ex_idx: {'letter': 'A', 'position': 1, 'pair_size': 2}}
+        """
+        superset_map = {}
+        current_letter = None
+        current_pair = []
+        next_letter_idx = 0
+
+        def _close_pair():
+            nonlocal next_letter_idx
+            if len(current_pair) == 2:
+                letter = chr(ord('A') + next_letter_idx)
+                next_letter_idx += 1
+                for i, pi in enumerate(current_pair):
+                    superset_map[pi] = {
+                        'letter': letter,
+                        'position': i + 1,
+                        'pair_size': 2
+                    }
+            elif len(current_pair) == 1:
+                superset_map.pop(current_pair[0], None)
+
+        for idx, ex in enumerate(self.exercises_data):
+            sid = ex.get('superset_id')
+            if sid is not None:
+                if current_letter == sid:
+                    current_pair.append(idx)
+                else:
+                    _close_pair()
+                    current_letter = sid
+                    current_pair = [idx]
+            else:
+                _close_pair()
+                current_letter = None
+                current_pair = []
+
+        _close_pair()
+        return superset_map
+
+    def _build_exercise_card(self, ex_idx, ex, superset_map=None):
         """Build a single exercise card with all its set rows."""
         from kivy.app import App
         app = App.get_running_app()
+
+        if superset_map is None:
+            superset_map = {}
 
         track = ex.get('track', 'strength')
         name = ex.get('name', 'Exercise')
@@ -382,10 +536,13 @@ class WorkoutConsoleScreen(BoxLayout):
         num_sets = ex.get('sets', 3)
         default_reps = ex.get('reps', 10)
 
-        # Check equipment type
-        uses_weight = track == 'strength' and equip.lower() not in ['bodyweight', 'none', '']
-        uses_barbell = 'barbell' in [t.lower() for t in ex.get('equip_tags', [])] or 'barbell' in equip.lower()
         is_cardio = track == 'cardio'
+        is_strength = track == 'strength'
+
+        # Superset info
+        ss_info = superset_map.get(ex_idx)
+        is_superset = ss_info is not None
+        ss_label = f"{ss_info['letter']}{ss_info['position']}" if is_superset else ""
 
         # ─── Card wrapper ───
         card = BoxLayout(
@@ -406,11 +563,33 @@ class WorkoutConsoleScreen(BoxLayout):
         card.bind(size=lambda inst, val: self._draw_card_bg(inst))
 
         # ─── Exercise header ───
-        header = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(36))
-        header.add_widget(Label(
+        header = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(36), spacing=dp(6))
+
+        # Superset badge (A1, A2, B1, B2, etc.)
+        if is_superset:
+            ss_color = (0.2, 0.7, 0.9, 1) if ss_info['position'] == 1 else (0.9, 0.5, 0.2, 1)
+            ss_bg = (0.2, 0.7, 0.9, 0.2) if ss_info['position'] == 1 else (0.9, 0.5, 0.2, 0.2)
+            ss_badge = Label(
+                text=ss_label, font_size='11sp', bold=True,
+                color=ss_color, size_hint=(None, None),
+                size=(dp(30), dp(28)), halign='center', valign='middle'
+            )
+            with ss_badge.canvas.before:
+                Color(*ss_bg)
+                RoundedRectangle(pos=ss_badge.pos, size=ss_badge.size, radius=[dp(8)])
+            ss_badge.bind(pos=lambda inst, val: self._draw_ss_bg(inst, ss_bg))
+            ss_badge.bind(size=lambda inst, val: self._draw_ss_bg(inst, ss_bg))
+            header.add_widget(ss_badge)
+
+        name_label = Label(
             text=name, font_size='16sp', bold=True, color=(1, 1, 1, 1),
-            halign='left', text_size=(dp(280), None), valign='middle'
-        ))
+            halign='left', valign='middle',
+            shorten=True, shorten_from='right', markup=False,
+            size_hint_x=1.0
+        )
+        # Bind text_size to available width so it wraps/truncates correctly
+        name_label.bind(width=lambda inst, val: setattr(inst, 'text_size', (val - dp(4), None)))
+        header.add_widget(name_label)
         form_btn = Button(
             text="FORM", font_size='10sp', bold=True, size_hint=(None, None),
             size=(dp(55), dp(28)), background_normal='', background_down='',
@@ -424,35 +603,54 @@ class WorkoutConsoleScreen(BoxLayout):
         _ex_idx = ex_idx
         form_btn.bind(on_press=lambda x, i=_ex_idx: self._show_form_tip(i))
         header.add_widget(form_btn)
+
+        # PR badge for all strength exercises
+        if is_strength and not is_cardio:
+            best_reps = self._get_best_total_reps(name)
+            if best_reps > 0:
+                pr_label = Label(
+                    text=f"PR: {best_reps}", font_size='9sp', bold=True,
+                    color=(1.0, 0.84, 0.0, 1), size_hint=(None, None),
+                    size=(dp(50), dp(22)), halign='center', valign='middle'
+                )
+                with pr_label.canvas.before:
+                    Color(1.0, 0.84, 0.0, 0.15)
+                    RoundedRectangle(pos=pr_label.pos, size=pr_label.size, radius=[dp(8)])
+                pr_label.bind(pos=lambda inst, val: self._draw_pr_bg(inst))
+                pr_label.bind(size=lambda inst, val: self._draw_pr_bg(inst))
+                header.add_widget(pr_label)
+
         card.add_widget(header)
 
         # Subtitle line
         subtitle = f"{muscle} | {equip}" if not is_cardio else f"{muscle} | Cardio"
-        card.add_widget(Label(
+        sub_label = Label(
             text=subtitle, font_size='11sp', color=(0.5, 0.5, 0.5, 1),
-            size_hint_y=None, height=dp(18), halign='left', text_size=(dp(280), None)
-        ))
+            size_hint_y=None, height=dp(18), halign='left', valign='middle'
+        )
+        sub_label.bind(width=lambda inst, val: setattr(inst, 'text_size', (val - dp(4), None)))
+        card.add_widget(sub_label)
 
         # ─── LAST TIME YOU DID... ───
         last_perf = self._get_last_performance(name)
         if last_perf:
-            last_text = self._format_last_performance(last_perf)
+            last_text = self._format_last_performance(last_perf, name)
             last_label = Label(
                 text=last_text, font_size='11sp', bold=True,
                 color=(app.accent_color[0], app.accent_color[1], app.accent_color[2], 0.8),
-                size_hint_y=None, height=dp(18), halign='left',
-                text_size=(dp(280), None)
+                size_hint_y=None, height=dp(18), halign='left', valign='middle'
             )
+            last_label.bind(width=lambda inst, val: setattr(inst, 'text_size', (val - dp(4), None)))
             card.add_widget(last_label)
             # Increase card height for the extra line
             card.height += dp(18)
         else:
             no_data_label = Label(
-                text="First time — set your baseline!", font_size='11sp', italic=True,
+                text="", font_size='11sp',
                 color=(0.4, 0.4, 0.4, 1),
-                size_hint_y=None, height=dp(18), halign='left',
-                text_size=(dp(280), None)
+                size_hint_y=None, height=dp(0), halign='left', valign='middle'
             )
+            no_data_label.bind(width=lambda inst, val: setattr(inst, 'text_size', (val - dp(4), None)))
             card.add_widget(no_data_label)
             card.height += dp(18)
 
@@ -476,28 +674,29 @@ class WorkoutConsoleScreen(BoxLayout):
         card.add_widget(swap_row)
         card.height += dp(28)
 
-        # ─── Column headers ───
+        # ─── Column headers (must match set row widths exactly) ───
         col_header = BoxLayout(size_hint_y=None, height=dp(22), spacing=dp(6))
-        col_header.add_widget(Label(text="SET", font_size='10sp', bold=True, color=(0.4, 0.4, 0.4, 1)))
+        col_header.add_widget(Label(text="SET", font_size='10sp', bold=True, color=(0.4, 0.4, 0.4, 1),
+                                     size_hint_x=None, width=dp(30), halign='left', padding=[dp(4), 0]))
         if is_cardio:
-            col_header.add_widget(Label(text="DISTANCE", font_size='10sp', bold=True, color=(0.4, 0.4, 0.4, 1)))
-            col_header.add_widget(Label(text="PACE", font_size='10sp', bold=True, color=(0.4, 0.4, 0.4, 1)))
-        elif uses_weight:
-            col_header.add_widget(Label(text="WEIGHT", font_size='10sp', bold=True, color=(0.4, 0.4, 0.4, 1)))
-            col_header.add_widget(Label(text="REPS", font_size='10sp', bold=True, color=(0.4, 0.4, 0.4, 1)))
+            col_header.add_widget(Label(text="DISTANCE", font_size='10sp', bold=True, color=(0.4, 0.4, 0.4, 1),
+                                         size_hint_x=None, width=dp(60), halign='left'))
+            col_header.add_widget(Label(text="PACE", font_size='10sp', bold=True, color=(0.4, 0.4, 0.4, 1),
+                                         size_hint_x=1, halign='left'))
         else:
-            col_header.add_widget(Label(text="REPS", font_size='10sp', bold=True, color=(0.4, 0.4, 0.4, 1)))
-        col_header.add_widget(Label(text="", size_hint_x=None, width=dp(48)))
+            col_header.add_widget(Label(text="REPS", font_size='10sp', bold=True, color=(0.4, 0.4, 0.4, 1),
+                                         size_hint_x=1, halign='left'))
+        col_header.add_widget(Label(text="", size_hint_x=None, width=dp(44)))
         card.add_widget(col_header)
 
         # ─── Set rows ───
         for set_idx in range(num_sets):
-            row = self._build_set_row(ex_idx, set_idx, ex, uses_weight, uses_barbell, is_cardio, default_reps)
+            row = self._build_set_row(ex_idx, set_idx, ex, is_cardio, default_reps)
             card.add_widget(row)
 
         return card
 
-    def _build_set_row(self, ex_idx, set_idx, ex, uses_weight, uses_barbell, is_cardio, default_reps):
+    def _build_set_row(self, ex_idx, set_idx, ex, is_cardio, default_reps):
         """Build a single set row with inputs and checkmark."""
         from kivy.app import App
         app = App.get_running_app()
@@ -515,46 +714,28 @@ class WorkoutConsoleScreen(BoxLayout):
         row.bind(pos=lambda inst, val: self._draw_row_bg(inst))
         row.bind(size=lambda inst, val: self._draw_row_bg(inst))
 
-        # Set number label
+        # Set number label (matches header: width=dp(30), left-aligned)
         set_label = Label(
             text=f"{set_idx + 1}", font_size='14sp', bold=True,
-            color=(0.6, 0.6, 0.6, 1), size_hint_x=None, width=dp(30)
+            color=(0.6, 0.6, 0.6, 1), size_hint_x=None, width=dp(30),
+            halign='left', padding=[dp(4), 0]
         )
         row.add_widget(set_label)
 
-        # Target info
-        target = ""
-        if is_cardio:
-            target = "Run"
-        elif uses_weight:
-            target = f"-- kg"
-        else:
-            target = f"{default_reps}"
-        target_label = Label(
-            text=target, font_size='12sp', color=(0.4, 0.4, 0.4, 1),
-            size_hint_x=None, width=dp(60)
-        )
-        row.add_widget(target_label)
-
-        # Input field (editable label that acts as input)
+        # Input field (fills remaining space, left-aligned)
         if is_cardio:
             input_label = Label(
                 text="0.00 km", font_size='15sp', bold=True,
-                color=(1, 1, 1, 1), size_hint_x=1
-            )
-        elif uses_weight:
-            input_label = Label(
-                text=f"{ex.get('reps', 10)} reps", font_size='15sp', bold=True,
-                color=(1, 1, 1, 1), size_hint_x=1
+                color=(1, 1, 1, 1), size_hint_x=1, halign='left'
             )
         else:
             input_label = Label(
                 text=f"{default_reps} reps", font_size='15sp', bold=True,
-                color=(1, 1, 1, 1), size_hint_x=1
+                color=(1, 1, 1, 1), size_hint_x=1, halign='left'
             )
         row.add_widget(input_label)
 
-        # Checkmark button
+        # Checkmark button (matches header spacer: width=dp(44))
         check_btn = Button(
             text="+", font_size='20sp', bold=True,
             size_hint=(None, None), size=(dp(44), dp(40)),
@@ -574,7 +755,6 @@ class WorkoutConsoleScreen(BoxLayout):
         self.set_widgets[row_key] = {
             'row': row,
             'label': set_label,
-            'target': target_label,
             'input': input_label,
             'check': check_btn,
             'logged': False,
@@ -629,6 +809,42 @@ class WorkoutConsoleScreen(BoxLayout):
             Color(app.accent_color[0], app.accent_color[1], app.accent_color[2], alpha)
             RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(12)])
 
+    def _check_prs(self):
+        """Check if any exercises set a new PR. Returns list of PR lines."""
+        from collections import defaultdict
+        session_totals = defaultdict(int)
+        for s in self.logged_sets:
+            if s.get('type') == 'strength':
+                reps_text = s.get('reps', '0')
+                try:
+                    reps = int(str(reps_text).replace(' reps', '').strip())
+                except (ValueError, TypeError):
+                    reps = 0
+                session_totals[s.get('exercise', '')] += reps
+
+        pr_lines = []
+        for ex_name, total in session_totals.items():
+            if total <= 0:
+                continue
+            best = self._get_best_total_reps(ex_name)
+            if best > 0 and total > best:
+                pr_lines.append(f"NEW PR! {ex_name}: {total} reps (was {best})")
+            elif best == 0 and total > 0:
+                pr_lines.append(f"BASELINE SET! {ex_name}: {total} reps")
+        return pr_lines
+
+    def _draw_pr_bg(self, inst):
+        inst.canvas.before.clear()
+        with inst.canvas.before:
+            Color(1.0, 0.84, 0.0, 0.15)
+            RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(8)])
+
+    def _draw_ss_bg(self, inst, color):
+        inst.canvas.before.clear()
+        with inst.canvas.before:
+            Color(*color)
+            RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(8)])
+
     # ═══════════════════════════════════════════════════════════════
     #  CHECKMARK LOG SET
     # ═══════════════════════════════════════════════════════════════
@@ -640,8 +856,18 @@ class WorkoutConsoleScreen(BoxLayout):
             return
 
         info = self.set_widgets.get(row_key)
-        if not info or info['logged']:
+        if not info:
             return
+
+        # If already logged, un-mark it so user can edit reps (edit mode only)
+        if info['logged']:
+            if self._is_editing:
+                # In edit mode — show popup to change reps
+                self._show_edit_reps_popup(info)
+                return
+            else:
+                # In active mode — already logged, skip
+                return
 
         ex_idx = info['exercise_idx']
         set_idx = info['set_idx']
@@ -675,13 +901,7 @@ class WorkoutConsoleScreen(BoxLayout):
             set_data['distance'] = info['input'].text
             set_data['pace'] = '--'
         elif track == 'strength':
-            equip = ex.get('equip', '').lower()
-            if 'bodyweight' in equip or 'none' in equip:
-                set_data['reps'] = info['input'].text
-                set_data['weight'] = 'BW'
-            else:
-                set_data['reps'] = info['input'].text
-                set_data['weight'] = 'logged'
+            set_data['reps'] = info['input'].text
         self.logged_sets.append(set_data)
 
         self.completed_sets += 1
@@ -734,9 +954,26 @@ class WorkoutConsoleScreen(BoxLayout):
             secs = self.rest_time_left % 60
             if hasattr(self.ids, 'lbl_rest_timer'):
                 self.ids.lbl_rest_timer.text = f"REST {mins:02d}:{secs:02d}"
+            # Vibrate at 3 seconds remaining (short buzz)
+            if self.rest_time_left == 3:
+                try:
+                    from kivy.utils import platform
+                    if platform == 'android':
+                        from jnius import autoclass
+                        autoclass('org.kivy.android.PythonActivity').mActivity.vibrate(0.3)
+                except Exception:
+                    pass
         else:
             if self.rest_timer_event:
                 self.rest_timer_event.cancel()
+            # Vibrate when rest is complete (long buzz)
+            try:
+                from kivy.utils import platform
+                if platform == 'android':
+                    from jnius import autoclass
+                    autoclass('org.kivy.android.PythonActivity').mActivity.vibrate(0.5)
+            except Exception:
+                pass
             # Hide banner
             if hasattr(self.ids, 'rest_banner'):
                 self.ids.rest_banner.opacity = 0
@@ -842,8 +1079,9 @@ class WorkoutConsoleScreen(BoxLayout):
           0.0 = content bottom visible (scrolled all the way down)
           scroll_y * (content_h - view_h) = offset from content bottom
         
-        To bring widget_top to viewport position target_viewport_y:
-          scroll_y = (widget_top - target_viewport_y) / (content_h - view_h)
+        To bring widget_top near the top of the viewport:
+          scroll_y = (widget_top - (view_h * 0.85)) / max_scroll
+          (0.85 = place widget top at 15% from viewport top)
         """
         try:
             content_height = container.height
@@ -856,14 +1094,17 @@ class WorkoutConsoleScreen(BoxLayout):
             if max_scroll <= 0:
                 return 0.5
 
-            # Widget's top edge in container coordinates
+            # Widget's top edge in container coordinates (from bottom)
             widget_top = target_widget.y + target_widget.height
 
-            # Place widget at 15% from the top of the viewport
-            target_viewport_y = view_height * 0.15
+            # Place widget top 15% from the TOP of the viewport
+            # In Kivy coords: 15% from top = 85% from bottom = view_height * 0.85
+            target_from_bottom = view_height * 0.85
 
-            # Correct Kivy formula
-            scroll_y = (widget_top - target_viewport_y) / max_scroll
+            # Kivy formula: scroll_y * max_scroll = viewport bottom from content bottom
+            # widget_top - scroll_y * max_scroll = widget pos from viewport bottom
+            # We want widget pos from viewport bottom = target_from_bottom
+            scroll_y = (widget_top - target_from_bottom) / max_scroll
 
             # Clamp to valid range
             return max(0.0, min(1.0, scroll_y))
@@ -939,6 +1180,12 @@ class WorkoutConsoleScreen(BoxLayout):
         app = App.get_running_app()
 
         content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(15))
+        with content.canvas.before:
+            from kivy.graphics import Color, Rectangle
+            Color(0.1, 0.1, 0.1, 1)
+            Rectangle(pos=content.pos, size=content.size)
+        content.bind(pos=lambda inst, val: self._redraw_popup_bg(inst))
+        content.bind(size=lambda inst, val: self._redraw_popup_bg(inst))
         content.add_widget(Label(
             text="WORKOUT COMPLETE!", font_size='20sp', bold=True,
             color=tuple(app.accent_color), size_hint_y=None, height=dp(35)
@@ -955,15 +1202,22 @@ class WorkoutConsoleScreen(BoxLayout):
             size_hint_y=None, height=dp(22)
         ))
 
+        # Check for PRs
+        pr_lines = self._check_prs()
+        if pr_lines:
+            content.add_widget(Label(
+                text="\n".join(pr_lines), font_size='12sp', bold=True,
+                color=(1.0, 0.84, 0.0, 1), size_hint_y=None, height=dp(20) * len(pr_lines),
+                halign='left', text_size=(dp(280), None)
+            ))
+
         if self.logged_sets:
             lines = []
             for s in self.logged_sets[:10]:
                 if s.get('type') == 'cardio':
                     lines.append(f"  {s['exercise']}: {s.get('distance', 'N/A')}")
-                elif s.get('weight') == 'BW':
-                    lines.append(f"  {s['exercise']}: {s.get('reps', '?')} reps (BW)")
                 else:
-                    lines.append(f"  {s['exercise']}: Set {s.get('set', '?')}")
+                    lines.append(f"  {s['exercise']}: {s.get('reps', '?')} reps")
             if len(self.logged_sets) > 10:
                 lines.append(f"  ... +{len(self.logged_sets) - 10} more")
             summary_label = Label(
@@ -973,40 +1227,44 @@ class WorkoutConsoleScreen(BoxLayout):
             )
             content.add_widget(summary_label)
 
-        # Save as Template button
-        btn_template = Button(
-            text="SAVE ROUTINE", bold=True, font_size='12sp',
-            size_hint_y=None, height=dp(42),
-            background_normal='', background_down='',
-            background_color=(0, 0, 0, 0), color=(0.0, 0.8, 1.0, 1),
-            border=(0, 0, 0, 0)
-        )
-        with btn_template.canvas.before:
-            Color(0.0, 0.8, 1.0, 0.15)
-            RoundedRectangle(pos=btn_template.pos, size=btn_template.size, radius=[dp(21)])
-        btn_template.bind(pos=lambda inst, val: self._draw_cyan_pill(inst))
-        btn_template.bind(size=lambda inst, val: self._draw_cyan_pill(inst))
-        btn_template.bind(on_press=lambda x: self._save_as_template(popup))
-        content.add_widget(btn_template)
+        # Button row: COOL DOWN + BACK TO CALENDAR (or just BACK when editing)
+        btn_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
 
-        btn = Button(
-            text="BACK TO CALENDAR", bold=True, font_size='14sp',
-            size_hint_y=None, height=dp(50),
+        if not self._is_editing:
+            cool_btn = Button(
+                text="COOL DOWN", bold=True, font_size='13sp',
+                background_normal='', background_down='',
+                background_color=(0.0, 0.0, 0.0, 0), color=(0.07, 0.07, 0.07, 1)
+            )
+            with cool_btn.canvas.before:
+                Color(0.07, 0.53, 0.3, 1)
+                RoundedRectangle(pos=cool_btn.pos, size=cool_btn.size, radius=[dp(25)])
+            cool_btn.bind(pos=lambda inst, val: self._draw_pill(inst, (0.07, 0.53, 0.3, 1)))
+            cool_btn.bind(size=lambda inst, val: self._draw_pill(inst, (0.07, 0.53, 0.3, 1)))
+            btn_row.add_widget(cool_btn)
+
+        cal_btn = Button(
+            text="BACK", bold=True, font_size='13sp',
             background_normal='', background_down='',
             background_color=(0, 0, 0, 0), color=(0.07, 0.07, 0.07, 1)
         )
-        with btn.canvas.before:
+        with cal_btn.canvas.before:
             Color(*app.accent_color)
-            RoundedRectangle(pos=btn.pos, size=btn.size, radius=[dp(25)])
-        btn.bind(pos=lambda inst, val: self._draw_accent_pill(inst))
-        btn.bind(size=lambda inst, val: self._draw_accent_pill(inst))
-        content.add_widget(btn)
+            RoundedRectangle(pos=cal_btn.pos, size=cal_btn.size, radius=[dp(25)])
+        cal_btn.bind(pos=lambda inst, val: self._draw_accent_pill(inst))
+        cal_btn.bind(size=lambda inst, val: self._draw_accent_pill(inst))
+        btn_row.add_widget(cal_btn)
+
+        content.add_widget(btn_row)
 
         popup = Popup(
             title="", content=content, size_hint=(0.85, None), height=dp(380),
-            auto_dismiss=False, background_color=(0.1, 0.1, 0.1, 0.95)
+            auto_dismiss=False, background=_POPUP_BG, background_color=(0.1, 0.1, 0.1, 1),
+            separator_height=0
         )
-        btn.bind(on_press=lambda x: self._close_and_return(popup))
+        if not self._is_editing:
+            cool_btn.bind(on_press=lambda x: self._go_to_stretch(popup))
+        cal_btn.bind(on_press=lambda x: self._close_and_return(popup))
         popup.open()
 
     def _draw_accent_pill(self, inst):
@@ -1023,35 +1281,27 @@ class WorkoutConsoleScreen(BoxLayout):
             Color(0.0, 0.8, 1.0, 0.15)
             RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(21)])
 
-    def _save_as_template(self, summary_popup):
-        """Show save template popup."""
-        summary_popup.dismiss()
+    def _redraw_popup_bg(self, inst):
+        """Redraw popup content's solid background to prevent overlay blur."""
+        inst.canvas.before.clear()
+        with inst.canvas.before:
+            from kivy.graphics import Color, Rectangle
+            Color(0.1, 0.1, 0.1, 1)
+            Rectangle(pos=inst.pos, size=inst.size)
 
-        # Build session data from current workout
-        session_data = {
-            "day_type": "Gym",
-            "focus": self.workout_name,
-            "exercises": []
-        }
-        for ex in self.exercises_data:
-            session_data["exercises"].append({
-                "exercise_id": ex.get('id', ''),
-                "exercise_name": ex.get('name', ''),
-                "target_sets": ex.get('sets', 3),
-                "target_reps": ex.get('reps', 10),
-                "category": ex.get('muscle', ''),
-                "equipment": ex.get('equip', ''),
-            })
+    def _go_to_stretch(self, popup):
+        """Navigate to the cool-down stretch timer."""
+        popup.dismiss()
+        from kivy.app import App
+        app = App.get_running_app()
+        if hasattr(app, 'sm'):
+            app.sm.current = 'stretch'
 
-        from template_view import TemplateView
-        tv = TemplateView()
-        tv.show_save_popup(session_data, on_save_callback=lambda: self._on_template_saved())
-
-    def _on_template_saved(self):
-        """Called after template is saved."""
-        if hasattr(self.ids, 'lbl_sync_status'):
-            self.ids.lbl_sync_status.text = "Template saved!"
-        self.go_back_to_calendar()
+    def _draw_pill(self, inst, color):
+        inst.canvas.before.clear()
+        with inst.canvas.before:
+            Color(*color)
+            RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(25)])
 
     def _close_and_return(self, popup):
         popup.dismiss()
@@ -1062,9 +1312,150 @@ class WorkoutConsoleScreen(BoxLayout):
             from kivy.app import App
             app = App.get_running_app()
             if hasattr(app, 'sm'):
+                # Refresh calendar dots and day display when returning
+                cal_screen = app.sm.get_screen('calendar')
+                if hasattr(cal_screen, 'children') and cal_screen.children:
+                    cal_widget = cal_screen.children[0]
+                    if hasattr(cal_widget, '_update_completion_dots'):
+                        cal_widget._update_completion_dots()
+                    if hasattr(cal_widget, 'load_selected_day_schedule'):
+                        cal_widget.load_selected_day_schedule(cal_widget.selected_day_index)
                 app.sm.current = 'calendar'
         except Exception as e:
             print(f"[Nav Error] {e}")
+
+    # ═══════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════
+    #  EDIT REPS POPUP
+    # ═══════════════════════════════════════════════════════════════
+    def _show_edit_reps_popup(self, info):
+        """Show a popup to edit reps for a set."""
+        from kivy.uix.popup import Popup
+        from kivy.uix.boxlayout import BoxLayout
+        from kivy.app import App
+        app = App.get_running_app()
+
+        ex_idx = info['exercise_idx']
+        set_idx = info['set_idx']
+        ex = self.exercises_data[ex_idx]
+        track = ex.get('track', 'strength')
+        ex_name = ex.get('name', 'Exercise')
+
+        # Get current value from the label
+        current_text = info['input'].text.replace(' reps', '').replace(' km', '').strip()
+
+        content = BoxLayout(orientation='vertical', spacing=dp(12), padding=dp(20))
+
+        # Title
+        content.add_widget(Label(
+            text=f"EDIT {ex_name.upper()}", font_size='14sp', bold=True,
+            color=app.accent_color, size_hint_y=None, height=dp(30)
+        ))
+        content.add_widget(Label(
+            text=f"Set {set_idx + 1}", font_size='12sp',
+            color=(0.6, 0.6, 0.6, 1), size_hint_y=None, height=dp(20)
+        ))
+
+        # TextInput
+        input_field = TextInput(
+            text=current_text, font_size='24sp',
+            foreground_color=(1, 1, 1, 1),
+            background_color=(0.12, 0.12, 0.12, 1),
+            cursor_color=(0.12, 0.12, 0.12, 1),
+            selection_color=(0.2, 0.6, 0.4, 0.4),
+            size_hint_y=None, height=dp(50),
+            halign='center', multiline=False,
+            input_filter='int' if track == 'strength' else None,
+        )
+        content.add_widget(input_field)
+
+        # Unit label
+        unit = 'reps' if track == 'strength' else 'km'
+        content.add_widget(Label(
+            text=unit, font_size='12sp',
+            color=(0.5, 0.5, 0.5, 1), size_hint_y=None, height=dp(18)
+        ))
+
+        # Buttons row
+        btn_row = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(10))
+
+        cancel_btn = Button(
+            text="CANCEL", font_size='13sp', bold=True,
+            background_normal='', background_down='',
+            background_color=(0.22, 0.22, 0.22, 1),
+            color=(0.7, 0.7, 0.7, 1)
+        )
+        btn_row.add_widget(cancel_btn)
+
+        save_btn = Button(
+            text="SAVE", font_size='13sp', bold=True,
+            background_normal='', background_down='',
+            background_color=(0.07, 0.53, 0.3, 1),
+            color=(1, 1, 1, 1)
+        )
+        btn_row.add_widget(save_btn)
+
+        content.add_widget(btn_row)
+
+        popup = Popup(
+            title="", content=content, size_hint=(0.8, None), height=dp(280),
+            auto_dismiss=False, background_color=(0.1, 0.1, 0.1, 0.95),
+            separator_height=0
+        )
+
+        def save_reps(dt=None):
+            new_val = input_field.text.strip()
+            if not new_val:
+                return
+            # Update the label text
+            info['input'].text = f"{new_val} {unit}"
+            # Build new set data
+            set_num = info['set_idx'] + 1
+            set_data = {
+                'exercise': ex_name,
+                'set': set_num,
+                'type': track,
+            }
+            if track == 'cardio':
+                set_data['distance'] = f"{new_val} km"
+                set_data['pace'] = '--'
+            else:
+                set_data['reps'] = f"{new_val} reps"
+            # Find and replace the old entry (case-insensitive, by exercise + set)
+            replaced = False
+            for i, s in enumerate(self.logged_sets):
+                if s.get('set') == set_num and s.get('exercise', '').lower() == ex_name.lower():
+                    self.logged_sets[i] = set_data
+                    replaced = True
+                    break
+            if not replaced:
+                self.logged_sets.append(set_data)
+            self.completed_sets = len(self.logged_sets)
+            if hasattr(self.ids, 'lbl_sets_completed'):
+                self.ids.lbl_sets_completed.text = f"Sets: {self.completed_sets}/{self.total_sets}"
+            # Mark as logged visually
+            info['logged'] = True
+            info['check'].text = "DONE"
+            info['check'].color = (0.3, 0.3, 0.3, 1)
+            info['check'].disabled = True
+            info['check'].canvas.before.clear()
+            with info['check'].canvas.before:
+                Color(0.3, 0.3, 0.3, 1)
+                RoundedRectangle(pos=info['check'].pos, size=info['check'].size, radius=[dp(12)])
+            info['row'].canvas.before.clear()
+            with info['row'].canvas.before:
+                Color(0.15, 0.15, 0.15, 0.5)
+                RoundedRectangle(pos=info['row'].pos, size=info['row'].size, radius=[dp(10)])
+            info['input'].color = (0.4, 0.4, 0.4, 1)
+            popup.dismiss()
+
+        save_btn.bind(on_press=save_reps)
+        cancel_btn.bind(on_press=popup.dismiss)
+        input_field.bind(on_text_validate=save_reps)
+        popup.open()
+        # Focus the input and select all text
+        input_field.focus = True
+        Clock.schedule_once(lambda dt: input_field.select_text(0, len(input_field.text)) if input_field.text else None, 0.2)
 
     # ═══════════════════════════════════════════════════════════════
     #  FORM HELP
@@ -1120,7 +1511,8 @@ class WorkoutConsoleScreen(BoxLayout):
 
         popup = Popup(
             title="", content=content, size_hint=(0.9, None), height=dp(370),
-            auto_dismiss=False, background_color=(0.1, 0.1, 0.1, 0.95)
+            auto_dismiss=False, background=_POPUP_BG, background_color=(0.1, 0.1, 0.1, 1),
+            separator_height=0
         )
         btn.bind(on_press=popup.dismiss)
         popup.open()
@@ -1137,15 +1529,40 @@ class WorkoutConsoleScreen(BoxLayout):
     # ═══════════════════════════════════════════════════════════════
     #  LAST TIME YOU DID... - Format previous performance
     # ═══════════════════════════════════════════════════════════════
-    def _format_last_performance(self, perf):
+    def _get_best_total_reps(self, exercise_name):
+        """Get the best total reps across all sets from previous sessions."""
+        if not isinstance(self._workout_history, dict):
+            return 0
+        sessions = self._workout_history.get(exercise_name, [])
+        if not sessions:
+            return 0
+        from collections import defaultdict
+        daily_totals = defaultdict(int)
+        for s in sessions:
+            if s.get('type') == 'strength':
+                reps_text = s.get('reps', '0')
+                try:
+                    reps = int(str(reps_text).replace(' reps', '').strip())
+                except (ValueError, TypeError):
+                    reps = 0
+                date_key = s.get('date', '')[:10]
+                daily_totals[date_key] += reps
+        if not daily_totals:
+            return 0
+        return max(daily_totals.values())
+
+    def _format_last_performance(self, perf, ex_name=''):
         """Format the last performance into a readable string."""
         ptype = perf.get('type', 'strength')
         if ptype == 'cardio':
             dist = perf.get('distance', '?')
             return f"Last time: {dist}"
-        elif perf.get('weight') == 'BW':
+        elif perf.get('type') == 'strength':
+            total = self._get_best_total_reps(ex_name)
+            if total > 0:
+                return f"Best: {total} total reps"
             reps = perf.get('reps', '?')
-            return f"Last time: {reps} reps (bodyweight)"
+            return f"Last time: {reps} reps"
         else:
             weight = perf.get('weight', '?')
             reps = perf.get('reps', '?')
@@ -1227,61 +1644,88 @@ class WorkoutConsoleScreen(BoxLayout):
             content.add_widget(btn)
             popup = Popup(
                 title="", content=content, size_hint=(0.85, None), height=dp(170),
-                auto_dismiss=False, background_color=(0.1, 0.1, 0.1, 0.95)
+                auto_dismiss=False, background=_POPUP_BG, background_color=(0.1, 0.1, 0.1, 1),
+                separator_height=0
             )
             btn.bind(on_press=popup.dismiss)
             popup.open()
             return
 
-        # Build alternatives popup
+        # Build alternatives popup with search
         from kivy.uix.popup import Popup
         from kivy.uix.label import Label
         from kivy.uix.button import Button
+        from kivy.uix.textinput import TextInput
+        from exercise_search import search_exercises
 
-        content = BoxLayout(orientation='vertical', spacing=dp(8), padding=dp(15))
+        content = BoxLayout(orientation='vertical', spacing=dp(6), padding=dp(15))
         content.add_widget(Label(
             text="SWAP EXERCISE", font_size='16sp', bold=True,
-            color=(1.0, 0.43, 0.0, 1), size_hint_y=None, height=dp(28)
+            color=(1.0, 0.43, 0.0, 1), size_hint_y=None, height=dp(24)
         ))
         content.add_widget(Label(
-            text=f"Replacing: {ex_name}", font_size='13sp',
-            color=(0.7, 0.7, 0.7, 1), size_hint_y=None, height=dp(22)
+            text=f"Replacing: {ex_name}", font_size='12sp',
+            color=(0.7, 0.7, 0.7, 1), size_hint_y=None, height=dp(18)
         ))
 
-        for alt_id, alt_ex in alternatives[:5]:  # Max 5 alternatives
-            alt_name = alt_ex.get('name', 'Unknown')
-            alt_muscle = alt_ex.get('muscle', '')
-            alt_equip = alt_ex.get('equip', '')
+        # Search input
+        results_list = BoxLayout(orientation='vertical', spacing=dp(4), size_hint_y=None)
+        results_list.bind(minimum_height=results_list.setter('height'))
 
-            alt_btn = Button(
-                text=f"{alt_name}", font_size='13sp', bold=True,
-                size_hint_y=None, height=dp(42),
-                background_normal='', background_down='',
-                background_color=(0, 0, 0, 0),
-                color=(1, 1, 1, 1)
-            )
-            with alt_btn.canvas.before:
-                Color(0.18, 0.18, 0.18, 1)
-                RoundedRectangle(pos=alt_btn.pos, size=alt_btn.size, radius=[dp(12)])
-            alt_btn.bind(pos=lambda inst, val: self._draw_row_bg(inst))
-            alt_btn.bind(size=lambda inst, val: self._draw_row_bg(inst))
-            _ex_idx = ex_idx
-            _alt_name = alt_name
-            alt_btn.bind(on_press=lambda x, i=_ex_idx, n=_alt_name: self._apply_swap(i, n))
-            content.add_widget(alt_btn)
+        search_input = TextInput(
+            hint_text="Search exercises...", font_size='13sp',
+            size_hint_y=None, height=dp(36),
+            multiline=False, padding=[dp(10), dp(8)],
+            background_color=(0.15, 0.15, 0.15, 1),
+            foreground_color=(1, 1, 1, 1),
+            hint_text_color=(0.5, 0.5, 0.5, 1),
+            cursor_color=(0.15, 0.15, 0.15, 1),
+            border=(0.15, 0.15, 0.15, 1)
+        )
+        content.add_widget(search_input)
+
+        def update_results(query=''):
+            results_list.clear_widgets()
+            if query.strip():
+                matches = search_exercises(query, all_ex, max_results=12)
+            else:
+                matches = alternatives[:5]
+            for eid, alt_ex in matches:
+                alt_name = alt_ex.get('name', 'Unknown')
+                alt_btn = Button(
+                    text=f"{alt_name}", font_size='12sp', bold=True,
+                    size_hint_y=None, height=dp(36),
+                    background_normal='', background_down='',
+                    background_color=(0, 0, 0, 0),
+                    color=(1, 1, 1, 1)
+                )
+                with alt_btn.canvas.before:
+                    Color(0.18, 0.18, 0.18, 1)
+                    RoundedRectangle(pos=alt_btn.pos, size=alt_btn.size, radius=[dp(10)])
+                alt_btn.bind(pos=lambda inst, val: self._draw_row_bg(inst))
+                alt_btn.bind(size=lambda inst, val: self._draw_row_bg(inst))
+                _ex_idx = ex_idx
+                _alt_name = alt_name
+                alt_btn.bind(on_press=lambda x, i=_ex_idx, n=_alt_name: self._apply_swap(i, n))
+                results_list.add_widget(alt_btn)
+
+        search_input.bind(text=lambda inst, val: update_results(val))
+        update_results()  # Show initial alternatives
+        content.add_widget(results_list)
 
         cancel_btn = Button(
-            text="CANCEL", bold=True, font_size='13sp',
-            size_hint_y=None, height=dp(38),
+            text="DONE", bold=True, font_size='13sp',
+            size_hint_y=None, height=dp(36),
             background_normal='', background_down='',
             background_color=(0, 0, 0, 0), color=(0.6, 0.6, 0.6, 1)
         )
         content.add_widget(cancel_btn)
 
         popup = Popup(
-            title="", content=content, size_hint=(0.85, None),
-            height=min(dp(350), dp(120) + len(alternatives) * dp(46)),
-            auto_dismiss=False, background_color=(0.1, 0.1, 0.1, 0.95)
+            title="", content=content, size_hint=(0.88, None),
+            height=dp(480),
+            auto_dismiss=False, background=_POPUP_BG, background_color=(0.1, 0.1, 0.1, 1),
+            separator_height=0
         )
         cancel_btn.bind(on_press=popup.dismiss)
         popup.open()

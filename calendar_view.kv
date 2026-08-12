@@ -36,6 +36,16 @@
         Widget:
             size_hint_x: 0.5
 
+        # Lab icon (AI Coach + Program Lab)
+        MDIconButton:
+            icon: "flask"
+            icon_size: '22sp'
+            theme_text_color: "Custom"
+            text_color: app.accent_color
+            size_hint_x: None
+            width: dp(48)
+            on_release: root.open_features_popup()
+
         # Progress button
         MDIconButton:
             icon: "chart-line"
@@ -193,7 +203,7 @@
                     radius: [dp(12)]
             on_press: root.load_selected_day_schedule(6)
 
-    # ═══ MODE TOGGLE: AI Coach vs My Routine ═══
+    # ═══ MODE TOGGLE: AI Coach vs My Program ═══
     BoxLayout:
         size_hint_y: None
         height: dp(40)
@@ -213,7 +223,7 @@
 
         Button:
             id: btn_mode_routine
-            text: "MY ROUTINE"
+            text: "MY PROGRAM"
             bold: True
             font_size: '11sp'
             background_normal: ''
@@ -270,6 +280,7 @@
                 color: 0.7, 0.7, 0.7, 1
                 halign: 'left'
                 valign: 'top'
+                markup: True
                 text_size: (self.width, None)
                 size_hint_y: None
                 height: self.texture_size[1]
@@ -281,8 +292,10 @@
             height: dp(48)
             spacing: dp(10)
 
+            # Show EDIT button in routine mode, RESCHEDULE in AI mode
             Button:
-                text: "RESCHEDULE"
+                id: btn_load_or_reschedule
+                text: "EDIT" if root.workout_mode == 'routine' else "RESCHEDULE"
                 bold: True
                 font_size: '12sp'
                 background_normal: ''
@@ -296,7 +309,7 @@
                         pos: self.pos
                         size: self.size
                         radius: [dp(14)]
-                on_press: animations.button_flash(self); root.activate_quick_shift_mode()
+                on_press: animations.button_flash(self); root.load_routine_for_current_day() if root.workout_mode == 'routine' else root.activate_quick_shift_mode()
 
             Button:
                 text: "START WORKOUT"
@@ -314,27 +327,6 @@
                         size: self.size
                         radius: [dp(14)]
                 on_press: animations.button_flash(self); root.initiate_active_gym_session()
-
-    # Quick Start button
-    Button:
-        text: "QUICK START - Last Workout"
-        bold: True
-        font_size: '12sp'
-        size_hint_y: None
-        height: dp(40)
-        background_normal: ''
-        background_down: ''
-        background_color: 0, 0, 0, 0
-        color: 0.0, 0.8, 1.0, 1
-        border: (0, 0, 0, 0)
-        canvas.before:
-            Color:
-                rgba: 0.0, 0.8, 1.0, 0.12
-            RoundedRectangle:
-                pos: self.pos
-                size: self.size
-                radius: [dp(14)]
-        on_press: animations.button_flash(self); root.quick_start_last_workout()
 
     # User name
     Label:

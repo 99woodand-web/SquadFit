@@ -27,6 +27,12 @@ class ProgressScreen(BoxLayout):
     
     def _init_ui(self, dt):
         """Initialize the UI after KV is loaded."""
+        # Set up tab redraw bindings once (so they don't accumulate)
+        for tab_id in ['tab_charts', 'tab_prs', 'tab_calendar']:
+            if hasattr(self.ids, tab_id):
+                btn = self.ids[tab_id]
+                btn.bind(pos=lambda inst, val: self._update_tab_bg(inst))
+                btn.bind(size=lambda inst, val: self._update_tab_bg(inst))
         self.switch_tab('charts')
     
     # ═══════════════════════════════════════════════════════════════
@@ -65,6 +71,79 @@ class ProgressScreen(BoxLayout):
         except Exception:
             pass
         return []
+
+    def export_history_csv(self):
+        """Export all workout history to a CSV file."""
+        import csv
+        import os
+        from datetime import datetime
+        from kivy.app import App
+        app = App.get_running_app()
+
+        completions = self._load_completions()
+        if not completions:
+            if hasattr(app, 'sm'):
+                pw = app.sm.get_screen('progress').children[0]
+                if hasattr(pw, 'ids') and hasattr(pw.ids, 'lbl_status'):
+                    pw.ids.lbl_status.text = "No workouts to export!"
+            return
+
+        # Build CSV rows
+        rows = []
+        for entry in completions:
+            date = entry.get('date', '')
+            name = entry.get('workout_name', '')
+            elapsed = entry.get('elapsed', 0)
+            mins = elapsed // 60
+            secs = elapsed % 60
+            duration = f"{mins:02d}:{secs:02d}"
+
+            sets = entry.get('sets', [])
+            if sets:
+                for s in sets:
+                    rows.append({
+                        'Date': date,
+                        'Workout': name,
+                        'Duration': duration,
+                        'Exercise': s.get('exercise', ''),
+                        'Set': s.get('set', ''),
+                        'Reps': s.get('reps', s.get('distance', '')),
+                        'Type': s.get('type', 'strength'),
+                    })
+            else:
+                rows.append({
+                    'Date': date,
+                    'Workout': name,
+                    'Duration': duration,
+                    'Exercise': '',
+                    'Set': '',
+                    'Reps': '',
+                    'Type': '',
+                })
+
+        # Write CSV
+        csv_path = os.path.join(os.path.expanduser('~'), 'Downloads', 'squadfit_history.csv')
+        # Fallback to app directory if Downloads doesn't exist
+        if not os.path.isdir(os.path.dirname(csv_path)):
+            csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'squadfit_history.csv')
+
+        try:
+            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=['Date', 'Workout', 'Duration', 'Exercise', 'Set', 'Reps', 'Type'])
+                writer.writeheader()
+                writer.writerows(rows)
+            print(f"[Progress] Exported {len(rows)} rows to {csv_path}")
+            # Show confirmation
+            if hasattr(app, 'sm'):
+                pw = app.sm.get_screen('progress').children[0]
+                if hasattr(pw, 'ids') and hasattr(pw.ids, 'lbl_status'):
+                    pw.ids.lbl_status.text = f"Exported {len(rows)} rows to CSV!"
+        except Exception as e:
+            print(f"[Progress] Export error: {e}")
+            if hasattr(app, 'sm'):
+                pw = app.sm.get_screen('progress').children[0]
+                if hasattr(pw, 'ids') and hasattr(pw.ids, 'lbl_status'):
+                    pw.ids.lbl_status.text = f"Export failed: {e}"
     
     # ═══════════════════════════════════════════════════════════════
     #  TAB SWITCHING
@@ -86,8 +165,8 @@ class ProgressScreen(BoxLayout):
                 with btn.canvas.before:
                     Color(*app.accent_color if is_active else app.card_bg)
                     RoundedRectangle(pos=btn.pos, size=btn.size, radius=[dp(12)])
-                btn.bind(pos=lambda inst, val, c=app.accent_color if is_active else app.card_bg: self._redraw_tab(inst, c))
-                btn.bind(size=lambda inst, val, c=app.accent_color if is_active else app.card_bg: self._redraw_tab(inst, c))
+                # Store tab name on the button for dynamic redraw
+                btn._tab_name = name
         
         # Build content
         content = self.ids.content_area
@@ -101,6 +180,18 @@ class ProgressScreen(BoxLayout):
             self._build_calendar_tab(content)
     
     def _redraw_tab(self, inst, color):
+        inst.canvas.before.clear()
+        with inst.canvas.before:
+            Color(*color)
+            RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(12)])
+
+    def _update_tab_bg(self, inst):
+        """Redraw tab background based on current active tab."""
+        from kivy.app import App
+        app = App.get_running_app()
+        tab_name = getattr(inst, '_tab_name', '')
+        is_active = (tab_name == self.current_tab)
+        color = app.accent_color if is_active else app.card_bg
         inst.canvas.before.clear()
         with inst.canvas.before:
             Color(*color)
@@ -173,7 +264,7 @@ class ProgressScreen(BoxLayout):
         # Stats row
         stats = self._calculate_stats(sessions)
         stats_label = Label(
-            text=f"Best: {stats['best_weight']}kg | Latest: {stats['latest_weight']}kg | Sessions: {stats['session_count']}",
+            text=f"Best: {stats['best_reps']} reps | Latest: {stats['latest_reps']} reps | Sessions: {stats['session_count']}",
             font_size='10sp', color=(0.6, 0.6, 0.6, 1),
             halign='left', size_hint_y=None, height=dp(18)
         )
@@ -189,17 +280,24 @@ class ProgressScreen(BoxLayout):
     
     def _calculate_stats(self, sessions):
         """Calculate stats for an exercise."""
-        weights = []
+        total_reps = []
         for s in sessions:
-            w = s.get('weight', 0)
-            if isinstance(w, (int, float)) and w > 0:
-                weights.append(w)
+            r = s.get('reps', 0)
+            if isinstance(r, (int, float)) and r > 0:
+                total_reps.append(r)
+            elif isinstance(r, str):
+                try:
+                    val = int(r.replace(' reps', '').strip())
+                    if val > 0:
+                        total_reps.append(val)
+                except (ValueError, TypeError):
+                    pass
         
         return {
-            'best_weight': max(weights) if weights else 0,
-            'latest_weight': weights[-1] if weights else 0,
+            'best_reps': max(total_reps) if total_reps else 0,
+            'latest_reps': total_reps[-1] if total_reps else 0,
             'session_count': len(sessions),
-            'total_volume': sum(s.get('weight', 0) * s.get('reps', 0) for s in sessions if isinstance(s.get('weight'), (int, float)))
+            'total_reps': sum(total_reps)
         }
     
     def _build_weekly_volume_chart(self, app):
@@ -219,10 +317,14 @@ class ProgressScreen(BoxLayout):
             for ex_name, sessions in self._workout_history.items():
                 for s in sessions:
                     date = s.get('date', '')[:10]
-                    weight = s.get('weight', 0)
                     reps = s.get('reps', 0)
-                    if week_start_str <= date <= week_end_str and isinstance(weight, (int, float)) and weight > 0:
-                        vol += weight * reps
+                    if isinstance(reps, str):
+                        try:
+                            reps = int(reps.replace(' reps', '').strip())
+                        except (ValueError, TypeError):
+                            reps = 0
+                    if week_start_str <= date <= week_end_str and isinstance(reps, (int, float)) and reps > 0:
+                        vol += reps
 
             label = week_start.strftime('%d %b')
             weekly_volumes.append({'label': label, 'volume': vol})
@@ -264,38 +366,35 @@ class ProgressScreen(BoxLayout):
     
     def _detect_all_prs(self):
         """Detect personal records for all exercises."""
+        from collections import defaultdict
         prs = []
         
+        # Group sessions by date to get per-session totals
         for ex_name, sessions in self._workout_history.items():
-            best_volume = 0
-            best_weight = 0
-            best_date = ""
-            best_reps = 0
-            
+            daily_totals = defaultdict(int)
+            daily_dates = {}
             for s in sessions:
-                w = s.get('weight', 0)
                 r = s.get('reps', 0)
-                date = s.get('date', '')
-                
-                if isinstance(w, (int, float)) and w > 0:
-                    volume = w * r
-                    if volume > best_volume:
-                        best_volume = volume
-                        best_weight = w
-                        best_reps = r
-                        best_date = date[:10] if date else ""
+                if isinstance(r, str):
+                    try:
+                        r = int(r.replace(' reps', '').strip())
+                    except (ValueError, TypeError):
+                        r = 0
+                if isinstance(r, (int, float)) and r > 0:
+                    date_key = s.get('date', '')[:10]
+                    daily_totals[date_key] += r
+                    daily_dates[date_key] = s.get('date', '')[:10]
             
-            if best_volume > 0:
+            if daily_totals:
+                best_date = max(daily_totals, key=daily_totals.get)
                 prs.append({
                     'exercise': ex_name,
-                    'weight': best_weight,
-                    'reps': best_reps,
-                    'volume': best_volume,
-                    'date': best_date
+                    'reps': daily_totals[best_date],
+                    'date': daily_dates.get(best_date, '')
                 })
         
-        # Sort by date (newest first)
-        prs.sort(key=lambda x: x.get('date', ''), reverse=True)
+        # Sort by reps (highest first)
+        prs.sort(key=lambda x: x.get('reps', 0), reverse=True)
         return prs
     
     def _build_pr_card(self, pr, app):
@@ -325,7 +424,7 @@ class ProgressScreen(BoxLayout):
             color=(1, 1, 1, 1), halign='left'
         ))
         info_box.add_widget(Label(
-            text=f"{pr['weight']}kg x {pr['reps']} reps",
+            text=f"{pr['reps']} total reps",
             font_size='11sp', color=(0.2, 1.0, 0.6, 1), halign='left'
         ))
         card.add_widget(info_box)
@@ -476,12 +575,17 @@ class ExerciseChart(Widget):
         if not self.sessions or len(self.sessions) < 2:
             return
         
-        # Extract weight data points
+        # Extract reps data points
         points = []
         for i, s in enumerate(self.sessions):
-            w = s.get('weight', 0)
-            if isinstance(w, (int, float)) and w > 0:
-                points.append((i, w))
+            r = s.get('reps', 0)
+            if isinstance(r, str):
+                try:
+                    r = int(r.replace(' reps', '').strip())
+                except (ValueError, TypeError):
+                    r = 0
+            if isinstance(r, (int, float)) and r > 0:
+                points.append((i, r))
         
         if len(points) < 2:
             return
