@@ -115,13 +115,14 @@ class AICoachScreen(BoxLayout):
 
     def _build_volume_section(self, container, volume):
         """Build the weekly volume tracker."""
-        card = self._make_card(container, height=dp(250))
+        present = [m for m in ["Chest", "Back", "Legs", "Shoulders", "Biceps", "Triceps", "Core"]
+                   if m in volume]
+        # Title (20) + rows (26 each) + spacing (6 per gap) + padding (24) + small buffer
+        card = self._make_card(container, height=dp(48 + len(present) * 32))
 
         card.add_widget(self._section_label("WEEKLY VOLUME TRACKER"))
 
-        for muscle in ["Chest", "Back", "Legs", "Shoulders", "Biceps", "Triceps", "Core"]:
-            if muscle not in volume:
-                continue
+        for muscle in present:
             info = volume[muscle]
             row = self._build_volume_row(muscle, info)
             card.add_widget(row)
