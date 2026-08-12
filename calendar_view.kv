@@ -297,10 +297,10 @@
             height: dp(48)
             spacing: dp(10)
 
-            # Show EDIT button in routine mode, RESCHEDULE in AI mode
+            # Show CHANGE ROUTINE button in routine mode, RESCHEDULE in AI mode
             Button:
                 id: btn_load_or_reschedule
-                text: "ASSIGN" if root.workout_mode == 'routine' else "RESCHEDULE"
+                text: "CHANGE ROUTINE" if root.workout_mode == 'routine' else "RESCHEDULE"
                 bold: True
                 font_size: '12sp'
                 background_normal: ''

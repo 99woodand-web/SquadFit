@@ -98,19 +98,45 @@ class TemplateView:
             RoundedRectangle(pos=close_btn.pos, size=close_btn.size, radius=[dp(14)])
         close_btn.bind(pos=lambda inst, val: self._redraw_btn(inst, (0.18, 0.18, 0.18, 1)))
         close_btn.bind(size=lambda inst, val: self._redraw_btn(inst, (0.18, 0.18, 0.18, 1)))
+        # Create-new button — opens Program Lab to build a fresh routine
+        create_btn = Button(
+            text="CREATE NEW PROGRAM", bold=True, font_size='13sp',
+            size_hint_y=None, height=dp(42),
+            background_normal='', background_down='',
+            background_color=(0, 0, 0, 0),
+            color=(0.07, 0.07, 0.07, 1),
+            border=(0, 0, 0, 0)
+        )
+        with create_btn.canvas.before:
+            from kivy.graphics import Color, RoundedRectangle
+            Color(0.2, 1.0, 0.6, 1)
+            RoundedRectangle(pos=create_btn.pos, size=create_btn.size, radius=[dp(14)])
+        create_btn.bind(pos=lambda inst, val: self._redraw_btn(inst, (0.2, 1.0, 0.6, 1)))
+        create_btn.bind(size=lambda inst, val: self._redraw_btn(inst, (0.2, 1.0, 0.6, 1)))
+        create_btn.bind(on_press=lambda x: self._go_create_program())
+        content.add_widget(create_btn)
+
         close_btn.bind(on_press=lambda x: self.popup.dismiss())
         content.add_widget(close_btn)
 
         # Fixed popup height — ScrollView handles the overflow
         self.popup = Popup(
             title="", content=content,
-            size_hint=(0.88, 0.75),
+            size_hint=(0.88, 0.88),
             auto_dismiss=True,
             background=_POPUP_BG,
             background_color=(0.1, 0.1, 0.1, 1),
             separator_height=0
         )
         self.popup.open()
+
+    def _go_create_program(self):
+        """Dismiss the library and open Program Lab to build a new routine."""
+        if self.popup:
+            self.popup.dismiss()
+        app = App.get_running_app()
+        if app and hasattr(app, 'sm'):
+            app.sm.current = 'exercises'
 
     def _make_template_card(self, template, index, on_select_callback):
         """Create a card widget for a single template."""

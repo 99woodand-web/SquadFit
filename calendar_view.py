@@ -181,7 +181,7 @@ class CalendarViewScreen(BoxLayout):
                     exercise_names = [e.get('exercise_name', e.get('exercise_id', '')) for e in t.exercises]
                     return {"name": t.name, "exercises": exercise_names}
         # No routine assigned — show a helpful message
-        return {"name": "Tap to assign routine", "exercises": ["Switch to My Program mode", "and tap EDIT to pick a routine", "for this day."]}
+        return {"name": "Tap to assign routine", "exercises": ["Switch to My Program mode", "and tap SELECT to pick a routine", "for this day."]}
 
     def _load_day_routines(self):
         """Load per-day routine assignments."""
@@ -329,6 +329,10 @@ class CalendarViewScreen(BoxLayout):
         inner.add_widget(make_popup_btn("Log Out", (0.22, 0.22, 0.22, 1), (1, 0.4, 0.4, 1), lambda x: self._show_logout_confirm(x)))
         inner.add_widget(make_popup_btn("Factory Reset", (0.22, 0.22, 0.22, 1), (1.0, 0.33, 0.0, 1), lambda x: self._show_factory_reset_confirm()))
         inner.add_widget(make_popup_btn("Close", (0.12, 0.12, 0.12, 1), (0.6, 0.6, 0.6, 1), lambda x: self.settings_popup.dismiss(), dp(36)))
+
+        # About credit footer
+        inner.add_widget(Label(text="Made by Andy  ·  Squad Fit v0.1.0", font_size='10sp',
+                               color=(0.45, 0.45, 0.45, 1), size_hint_y=None, height=dp(18)))
 
         # Outer wrapper — spacer pushes grey rect down from popup top
         outer = BoxLayout(orientation='vertical', padding=[0, dp(14), 0, 0])
