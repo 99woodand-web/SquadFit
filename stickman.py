@@ -83,6 +83,24 @@ def _elbow_ik(shoulder, hand, forward):
     return _solve_joint(shoulder, hand, UA, FA, forward)
 
 
+def _elbow_ik_down(shoulder, hand):
+    """Elbow that always points DOWN (e.g. chest fly — slight bend below the arms)."""
+    ax, ay = shoulder
+    bx, by = hand
+    dx, dy = bx - ax, by - ay
+    d = math.hypot(dx, dy)
+    d = max(min(d, UA + FA - 1e-6), abs(UA - FA) + 1e-6)
+    a = (UA * UA - FA * FA + d * d) / (2 * d)
+    h = math.sqrt(max(0.0, UA * UA - a * a))
+    mx = ax + a * dx / d
+    my = ay + a * dy / d
+    x1 = mx + h * (-dy / d)
+    y1 = my + h * (dx / d)
+    x2 = mx - h * (-dy / d)
+    y2 = my - h * (dx / d)
+    return (x1, y1) if y1 <= y2 else (x2, y2)
+
+
 def _shoulder_at(hip, lean):
     return (hip[0] + T * math.sin(lean), hip[1] + T * math.cos(lean))
 
@@ -213,6 +231,28 @@ def pose_pull_v(ph):
     return dict(ankle=ankle, knee=knee, hip=hip, shoulder=shoulder, head=head,
                 elbow=elbow, hand=hand, plate=hand, equipment='cable',
                 anchor=(0.02, shoulder[1] + 1.0), highlight='torso', root='seated')
+
+
+def pose_fly(ph):
+    """Chest fly — front view: arms sweep from wide to together at the chest."""
+    d = _osc(ph)
+    hip = (0.0, 0.96)
+    near_ankle = (0.07, 0.04)
+    near_knee = (0.07, 0.04 + L2)
+    far_ankle = (-0.07, 0.04)
+    far_knee = (-0.07, 0.04 + L2)
+    shoulder = (0.0, hip[1] + T)
+    head = (0.0, shoulder[1] + HEAD * 1.05)
+    hand_x = 0.60 - 0.45 * d
+    near_hand = (hand_x, shoulder[1] - 0.02)
+    far_hand = (-hand_x, shoulder[1] - 0.02)
+    near_elbow = _elbow_ik_down(shoulder, near_hand)
+    far_elbow = _elbow_ik_down(shoulder, far_hand)
+    return dict(ankle=near_ankle, knee=near_knee, ankle2=far_ankle, knee2=far_knee,
+                hip=hip, shoulder=shoulder, head=head,
+                elbow=near_elbow, hand=near_hand, elbow2=far_elbow, hand2=far_hand,
+                plate=near_hand, plate2=far_hand, equipment='dumbbell',
+                highlight='torso', root='standing')
 
 
 def pose_pull_up(ph):
@@ -546,6 +586,7 @@ ARCHETYPES = [
     dict(id='squat',       name='Squat',            subtitle='legs · barbell',       pose=pose_squat),
     dict(id='hinge',       name='Hinge (Deadlift)', subtitle='legs · barbell',       pose=pose_hinge),
     dict(id='push_h',      name='Bench Press',      subtitle='chest · barbell',      pose=pose_push_h),
+    dict(id='fly',         name='Chest Fly',        subtitle='chest · cable',         pose=pose_fly),
     dict(id='push_v',      name='Overhead Press',   subtitle='shoulders · barbell',  pose=pose_push_v),
     dict(id='pull_h',      name='Bent-Over Row',    subtitle='back · dumbbell',      pose=pose_pull_h),
     dict(id='pull_v',      name='Lat Pulldown',     subtitle='back · cable',         pose=pose_pull_v),
@@ -654,8 +695,11 @@ def archetype_for(name='', equip='', muscle=''):
     # presses
     if has('overhead press', 'shoulder press', 'military press', 'arnold press', 'push press'):
         return 'push_v'
-    if has('bench press', 'chest press', 'floor press', 'fly', 'dip', 'pec deck',
-           'crossover', 'pullover'):
+    if has('reverse fly', 'rear delt'):
+        return 'pull_h'
+    if has('fly', 'pec deck', 'crossover'):
+        return 'fly'
+    if has('bench press', 'chest press', 'floor press', 'dip', 'pullover'):
         return 'push_h'
     if has('press'):
         return 'push_h'

@@ -71,6 +71,19 @@
   }
   // elbow from shoulder + hand (upper arm UA, forearm FA); hint picks the side
   function elbowIK(shoulder, hand, forward){ return solveJoint(shoulder, hand, UA, FA, forward); }
+  // elbow that always points DOWN (e.g. chest fly — slight bend below the arms)
+  function elbowIKdown(shoulder, hand){
+    const [ax,ay]=shoulder, [bx,by]=hand;
+    let dx=bx-ax, dy=by-ay;
+    let d=Math.hypot(dx,dy);
+    d=Math.max(Math.min(d, UA+FA-1e-6), Math.abs(UA-FA)+1e-6);
+    const a=(UA*UA - FA*FA + d*d)/(2*d);
+    const h=Math.sqrt(Math.max(0, UA*UA - a*a));
+    const mx=ax + a*dx/d, my=ay + a*dy/d;
+    const x1=mx + h*(-dy/d), y1=my + h*(dx/d);
+    const x2=mx - h*(-dy/d), y2=my - h*(dx/d);
+    return (y1<=y2) ? [x1,y1] : [x2,y2];
+  }
   // shoulder from hip + torso lean (radians from vertical, + = forward)
   function shoulderAt(hip, lean){ return [hip[0]+T*Math.sin(lean), hip[1]+T*Math.cos(lean)]; }
   // head above shoulder, follows lean + an extra tip
@@ -190,6 +203,24 @@
     const hand=[elbow[0]+FA*Math.sin(fa), elbow[1]+FA*Math.cos(fa)];
     return {ankle,knee,hip,shoulder,head,elbow,hand,plate:hand,equipment:'cable',
             anchor:[0.02, shoulder[1]+1.0], highlight:'torso', root:'seated'};
+  }
+
+  // chest fly — front view: arms sweep from wide to together at the chest
+  function poseFly(ph){
+    const d=osc(ph);
+    const hip=[0,0.96];
+    const nearAnkle=[0.07,0.04], nearKnee=[0.07,0.04+L2];
+    const farAnkle=[-0.07,0.04], farKnee=[-0.07,0.04+L2];
+    const shoulder=[0, hip[1]+T];
+    const head=[0, shoulder[1]+HEAD*1.05];
+    const handX=0.60 - 0.45*d;
+    const nearHand=[handX, shoulder[1]-0.02], farHand=[-handX, shoulder[1]-0.02];
+    const nearElbow=elbowIKdown(shoulder, nearHand);
+    const farElbow=elbowIKdown(shoulder, farHand);
+    return {ankle:nearAnkle,knee:nearKnee,ankle2:farAnkle,knee2:farKnee,
+            hip,shoulder,head,elbow:nearElbow,hand:nearHand,
+            elbow2:farElbow,hand2:farHand,plate:nearHand,plate2:farHand,
+            equipment:'dumbbell', highlight:'torso', root:'standing'};
   }
 
   // pull-up — hanging from an overhead bar, body rises as arms bend
@@ -501,6 +532,7 @@
     { id:'squat',    name:'Squat',             subtitle:'legs · barbell',       pose:poseSquat },
     { id:'hinge',    name:'Hinge (Deadlift)',  subtitle:'legs · barbell',       pose:poseHinge },
     { id:'push_h',   name:'Bench Press',       subtitle:'chest · barbell',      pose:posePushH },
+    { id:'fly',      name:'Chest Fly',         subtitle:'chest · cable',         pose:poseFly },
     { id:'push_v',   name:'Overhead Press',    subtitle:'shoulders · barbell',  pose:posePushV },
     { id:'pull_h',   name:'Bent-Over Row',     subtitle:'back · dumbbell',      pose:posePullH },
     { id:'pull_v',   name:'Lat Pulldown',      subtitle:'back · cable',         pose:posePullV },
