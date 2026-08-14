@@ -192,6 +192,24 @@
             anchor:[0.02, shoulder[1]+1.0], highlight:'torso', root:'seated'};
   }
 
+  // pull-up — hanging from an overhead bar, body rises as arms bend
+  function posePullUp(ph){
+    const d=osc(ph), BAR_Y=1.95, grip=0.24;
+    const hangY=BAR_Y - Math.sqrt((UA+FA)*(UA+FA) - grip*grip);
+    const sy=hangY + 0.47*d;
+    const shoulder=[0, sy];
+    const head=[0, sy+HEAD*1.05];
+    const hip=[0, sy-T];
+    const kneeY=sy-T-L1, ankleY=sy-T-L1-L2;
+    const nearHand=[grip, BAR_Y], farHand=[-grip, BAR_Y];
+    const nearElbow=elbowIK(shoulder, nearHand, true);
+    const farElbow=elbowIK(shoulder, farHand, false);
+    return {ankle:[0.07,ankleY],knee:[0.07,kneeY],ankle2:[-0.07,ankleY],knee2:[-0.07,kneeY],
+            hip,shoulder,head,elbow:nearElbow,hand:nearHand,elbow2:farElbow,hand2:farHand,
+            pullBar:[[-0.55,BAR_Y],[0.55,BAR_Y]],
+            equipment:'bodyweight', highlight:'arms', root:'hanging', noGround:true};
+  }
+
   function poseCurl(ph){
     const theta=2.6*osc(ph);                           // elbow flexion 0→~150°
     const ankle=[0,0.04];
@@ -486,6 +504,7 @@
     { id:'push_v',   name:'Overhead Press',    subtitle:'shoulders · barbell',  pose:posePushV },
     { id:'pull_h',   name:'Bent-Over Row',     subtitle:'back · dumbbell',      pose:posePullH },
     { id:'pull_v',   name:'Lat Pulldown',      subtitle:'back · cable',         pose:posePullV },
+    { id:'pull_up',  name:'Pull-Up',           subtitle:'back · bodyweight',    pose:posePullUp },
     { id:'curl',     name:'Bicep Curl',        subtitle:'arms · dumbbell',      pose:poseCurl },
     { id:'tricep',   name:'Tricep Extension',  subtitle:'arms · dumbbell',      pose:poseTricep },
     { id:'core_flex',name:'Leg Raise',         subtitle:'core · bodyweight',    pose:poseCoreFlex },
@@ -647,6 +666,12 @@
     }
     if (p.bike) drawBike(p.bike);
     if (p.machine) drawMachine(p.machine);
+    if (p.pullBar){
+      const STEEL=[0.55,0.58,0.66];
+      seg([p.pullBar[0][0],p.pullBar[0][1]],[p.pullBar[0][0],p.pullBar[0][1]-0.20],STEEL,2.5);
+      seg([p.pullBar[1][0],p.pullBar[1][1]],[p.pullBar[1][0],p.pullBar[1][1]-0.20],STEEL,2.5);
+      seg(p.pullBar[0],p.pullBar[1],STEEL,3);
+    }
 
     // legs
     if (legC===NEON){

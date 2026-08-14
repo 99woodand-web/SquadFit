@@ -215,6 +215,30 @@ def pose_pull_v(ph):
                 anchor=(0.02, shoulder[1] + 1.0), highlight='torso', root='seated')
 
 
+def pose_pull_up(ph):
+    """Pull-up / chin-up — hanging from an overhead bar, body rises as arms bend."""
+    d = _osc(ph)
+    bar_y = 1.95
+    grip = 0.24
+    hang_y = bar_y - math.sqrt((UA + FA) ** 2 - grip * grip)
+    sy = hang_y + 0.47 * d
+    shoulder = (0.0, sy)
+    head = (0.0, sy + HEAD * 1.05)
+    hip = (0.0, sy - T)
+    knee_y = sy - T - L1
+    ankle_y = sy - T - L1 - L2
+    near_hand = (grip, bar_y)
+    far_hand = (-grip, bar_y)
+    near_elbow = _elbow_ik(shoulder, near_hand, True)
+    far_elbow = _elbow_ik(shoulder, far_hand, False)
+    return dict(ankle=(0.07, ankle_y), knee=(0.07, knee_y),
+                ankle2=(-0.07, ankle_y), knee2=(-0.07, knee_y),
+                hip=hip, shoulder=shoulder, head=head,
+                elbow=near_elbow, hand=near_hand, elbow2=far_elbow, hand2=far_hand,
+                pull_bar=((-0.55, bar_y), (0.55, bar_y)),
+                equipment='bodyweight', highlight='arms', root='hanging', no_ground=True)
+
+
 def pose_curl(ph):
     theta = 2.6 * _osc(ph)
     ankle = (0.0, 0.04)
@@ -525,6 +549,7 @@ ARCHETYPES = [
     dict(id='push_v',      name='Overhead Press',   subtitle='shoulders · barbell',  pose=pose_push_v),
     dict(id='pull_h',      name='Bent-Over Row',    subtitle='back · dumbbell',      pose=pose_pull_h),
     dict(id='pull_v',      name='Lat Pulldown',     subtitle='back · cable',         pose=pose_pull_v),
+    dict(id='pull_up',     name='Pull-Up',          subtitle='back · bodyweight',    pose=pose_pull_up),
     dict(id='curl',        name='Bicep Curl',       subtitle='arms · dumbbell',      pose=pose_curl),
     dict(id='tricep',      name='Tricep Extension', subtitle='arms · dumbbell',      pose=pose_tricep),
     dict(id='core_flex',   name='Leg Raise',        subtitle='core · bodyweight',    pose=pose_core_flex),
@@ -609,7 +634,9 @@ def archetype_for(name='', equip='', muscle=''):
         return 'curl'
 
     # pulls
-    if has('pulldown', 'pull-up', 'pull up', 'pullup', 'chin-up', 'chin up'):
+    if has('pull-up', 'pull up', 'pullup', 'chin-up', 'chin up'):
+        return 'pull_up'
+    if has('pulldown'):
         return 'pull_v'
     if has('face pull', 'pull-apart', 'pull apart'):
         return 'pull_h'
@@ -826,6 +853,11 @@ class StickmanWidget(Widget):
             self._draw_bike(p['bike'])
         if p.get('machine'):
             self._draw_machine(p['machine'])
+        if p.get('pull_bar'):
+            (px1, py1), (px2, py2) = p['pull_bar']
+            self._seg((px1, py1), (px1, py1 - 0.20), STEEL, 2.5)
+            self._seg((px2, py2), (px2, py2 - 0.20), STEEL, 2.5)
+            self._seg((px1, py1), (px2, py2), STEEL, 3)
 
         # legs
         if leg_c == NEON:
