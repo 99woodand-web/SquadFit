@@ -313,8 +313,8 @@ class WorkoutConsoleScreen(BoxLayout):
             if was_logged:
                 # Mark as completed and show the actual logged value
                 info['logged'] = True
-                info['check'].text = "DONE"
-                info['check'].color = (0.3, 0.3, 0.3, 1)
+                self._set_tick(info['check'], True)
+                info['check'].color = (0.2, 1.0, 0.6, 1)
                 info['check'].disabled = True
                 info['check'].canvas.before.clear()
                 with info['check'].canvas.before:
@@ -331,6 +331,7 @@ class WorkoutConsoleScreen(BoxLayout):
             else:
                 # Not logged - disable the checkmark
                 info['check'].disabled = True
+                self._set_tick(info['check'], False)
                 info['check'].canvas.before.clear()
                 with info['check'].canvas.before:
                     Color(0.2, 0.2, 0.2, 1)
@@ -366,6 +367,7 @@ class WorkoutConsoleScreen(BoxLayout):
         app = App.get_running_app()
         for key, info in self.set_widgets.items():
             info['check'].disabled = False
+            self._set_tick(info['check'], False)
             info['check'].text = "EDIT" if info['logged'] else "+"
             info['check'].font_size = '10sp' if info['logged'] else '20sp'
             info['check'].canvas.before.clear()
@@ -766,11 +768,14 @@ class WorkoutConsoleScreen(BoxLayout):
             background_color=(0, 0, 0, 0),
             color=(0.07, 0.07, 0.07, 1)
         )
+        check_btn.ticked = False
         with check_btn.canvas.before:
             Color(*app.accent_color)
             RoundedRectangle(pos=check_btn.pos, size=check_btn.size, radius=[dp(12)])
         check_btn.bind(pos=lambda inst, val: self._draw_check_bg(inst))
         check_btn.bind(size=lambda inst, val: self._draw_check_bg(inst))
+        check_btn.bind(pos=lambda inst, val: self._redraw_tick_if_needed(inst))
+        check_btn.bind(size=lambda inst, val: self._redraw_tick_if_needed(inst))
         check_btn.bind(on_press=lambda x, k=row_key: self._log_set_checkmark(k))
         row.add_widget(check_btn)
 
@@ -823,6 +828,33 @@ class WorkoutConsoleScreen(BoxLayout):
         with inst.canvas.before:
             Color(0.3, 0.3, 0.3, 1)
             RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(12)])
+
+    def _set_tick(self, btn, show):
+        """Show/hide the completed-set tick as canvas lines (no font glyph)."""
+        btn.ticked = show
+        if show:
+            btn.text = ""
+        self._draw_tick(btn)
+
+    def _draw_tick(self, btn):
+        """Draw (or clear) the green tick on a check button."""
+        btn.canvas.after.clear()
+        if not getattr(btn, 'ticked', False):
+            return
+        x, y = btn.pos
+        w, h = btn.size
+        with btn.canvas.after:
+            Color(0.2, 1.0, 0.6, 1)
+            Line(
+                points=[x + w * 0.40, y + h * 0.52,
+                        x + w * 0.50, y + h * 0.42,
+                        x + w * 0.63, y + h * 0.64],
+                width=dp(1.2), cap='square', joint='miter'
+            )
+
+    def _redraw_tick_if_needed(self, inst, *args):
+        if getattr(inst, 'ticked', False):
+            self._draw_tick(inst)
 
     def _draw_btn_bg(self, inst, alpha):
         from kivy.app import App
@@ -899,8 +931,8 @@ class WorkoutConsoleScreen(BoxLayout):
 
         # Mark as logged visually
         info['logged'] = True
-        info['check'].text = "DONE"
-        info['check'].color = (0.3, 0.3, 0.3, 1)
+        self._set_tick(info['check'], True)
+        info['check'].color = (0.2, 1.0, 0.6, 1)
         info['check'].canvas.before.clear()
         with info['check'].canvas.before:
             Color(0.3, 0.3, 0.3, 1)
@@ -1469,8 +1501,8 @@ class WorkoutConsoleScreen(BoxLayout):
             self._update_progress_bar()
             # Mark as logged visually
             info['logged'] = True
-            info['check'].text = "DONE"
-            info['check'].color = (0.3, 0.3, 0.3, 1)
+            self._set_tick(info['check'], True)
+            info['check'].color = (0.2, 1.0, 0.6, 1)
             info['check'].disabled = True
             info['check'].canvas.before.clear()
             with info['check'].canvas.before:
