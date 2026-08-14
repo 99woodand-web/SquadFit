@@ -558,56 +558,84 @@ def archetype_for(name='', equip='', muscle=''):
     def has(*words):
         return any(w in n for w in words)
 
-    if has('cycling', 'cycle', 'spin bike', 'exercise bike', 'bike'):
-        return 'cycle'
+    # cardio / machines
     if has('rowing machine', 'rower'):
         return 'row_machine'
-    if has('farmer'):
+    if has('cycling', 'spin bike', 'exercise bike', 'bike', 'jump rope', 'swimming', 'swim'):
+        return 'cycle'
+    if has('farmer', 'sled'):
         return 'carry'
-    if has('plank'):
+    if has('run', 'walk', 'treadmill', 'elliptical', 'jog', 'sprint', 'stair',
+           'burpee', 'high knee'):
+        return 'carry'
+
+    # core
+    if has('plank', 'shoulder tap', 'hollow', 'superman', 'dragon flag', 'l-sit',
+           'ab roller', 'mountain climber'):
         return 'plank'
-    if has('push-up', 'push up', 'pushup'):
-        return 'pushup'
-    if has('crunch', 'sit-up', 'sit up', 'bicycle'):
+    if has('crunch', 'sit-up', 'sit up', 'bicycle', 'russian twist', 'dead bug', 'woodchop'):
         return 'crunch'
     if has('leg raise', 'legraise'):
         return 'core_flex'
     if has('bridge', 'hip thrust'):
         return 'bridge'
+
+    # bodyweight press / lower
+    if has('push-up', 'push up', 'pushup'):
+        return 'pushup'
     if has('calf'):
         return 'calf'
+
+    # isolation machines
     if has('leg extension', 'leg ext'):
         return 'leg_ext'
     if has('leg curl'):
         return 'leg_curl'
-    if has('kettlebell swing'):
+    if has('abduction', 'adduction'):
+        return 'leg_ext'
+    if has('seated row', 'seated cable row'):
+        return 'cable_row'
+
+    # kettlebell / explosive hip
+    if has('kettlebell swing', 'swing', 'clean', 'snatch'):
         return 'kb_swing'
-    if has('swing'):
-        return 'kb_swing'
-    if has('lateral raise', 'front raise'):
+
+    # arms / shoulders
+    if has('lateral raise', 'front raise', 'halo'):
         return 'lateral'
     if has('tricep', 'triceps', 'pushdown', 'skull crusher', 'kickback', 'overhead extension'):
         return 'tricep'
-    if has('pulldown', 'pull-up', 'pull up', 'pullup', 'chin-up', 'chin up'):
-        return 'pull_v'
-    if has('seated row', 'seated cable row'):
-        return 'cable_row'
     if has('curl'):
         return 'curl'
+
+    # pulls
+    if has('pulldown', 'pull-up', 'pull up', 'pullup', 'chin-up', 'chin up'):
+        return 'pull_v'
+    if has('face pull', 'pull-apart', 'pull apart'):
+        return 'pull_h'
+    if has('pull-through', 'pull through'):
+        return 'hinge'
     if has('row'):
         return 'pull_h'
+
+    # hinges / lower
     if has('deadlift', 'good morning', 'romanian'):
         return 'hinge'
+    if has('squat', 'lunge', 'leg press', 'hack squat', 'wall sit', 'step-up', 'step up'):
+        return 'squat'
+
+    # presses
     if has('overhead press', 'shoulder press', 'military press', 'arnold press', 'push press'):
         return 'push_v'
-    if has('bench press', 'chest press', 'floor press', 'fly', 'dip'):
+    if has('bench press', 'chest press', 'floor press', 'fly', 'dip', 'pec deck',
+           'crossover', 'pullover'):
         return 'push_h'
     if has('press'):
         return 'push_h'
-    if has('squat', 'lunge', 'leg press', 'hack squat'):
-        return 'squat'
-    if has('run', 'walk', 'treadmill', 'elliptical', 'jog', 'sprint', 'stairs'):
-        return 'carry'
+
+    # fallbacks by muscle
+    if muscle == 'Core':
+        return 'plank'
     if muscle == 'Cardio':
         return 'cycle'
     return 'squat'

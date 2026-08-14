@@ -13,6 +13,8 @@ from kivy.graphics import Color, RoundedRectangle
 
 from exercise_db import get_all_exercises, get_muscle_groups
 
+_POPUP_BG = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'popup_bg.png')
+
 
 class ExerciseSelectionScreen(BoxLayout):
     """Screen for browsing and selecting exercises with search and filters."""
@@ -264,6 +266,29 @@ class ExerciseSelectionScreen(BoxLayout):
         )
         row.add_widget(diff_label)
 
+        # Column 5: VIEW button (opens the animated movement preview)
+        view_btn = Button(
+            text="VIEW", font_size='9sp', bold=True,
+            size_hint_x=None, width=dp(42),
+            background_normal='', background_down='',
+            background_color=(0, 0, 0, 0),
+            color=(0.2, 1.0, 0.6, 1)
+        )
+        with view_btn.canvas.before:
+            Color(0.2, 1.0, 0.6, 0.15)
+            RoundedRectangle(pos=view_btn.pos, size=view_btn.size, radius=[dp(8)])
+
+        def _redraw_view_bg(inst):
+            inst.canvas.before.clear()
+            with inst.canvas.before:
+                Color(0.2, 1.0, 0.6, 0.15)
+                RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(8)])
+
+        view_btn.bind(pos=lambda inst, val: _redraw_view_bg(inst))
+        view_btn.bind(size=lambda inst, val: _redraw_view_bg(inst))
+        view_btn.bind(on_press=lambda x, ex=exercise: self._show_exercise_preview(ex))
+        row.add_widget(view_btn)
+
         # Background card
         with row.canvas.before:
             Color(*app.card_bg)
@@ -279,6 +304,56 @@ class ExerciseSelectionScreen(BoxLayout):
         row.bind(size=lambda inst, val: _redraw_bg(inst))
 
         return row
+
+    def _show_exercise_preview(self, exercise):
+        """Open a popup with the animated stick-figure demo of an exercise."""
+        from kivy.uix.popup import Popup
+        from stickman import StickmanWidget, archetype_for
+
+        content = BoxLayout(orientation='vertical', spacing=dp(8), padding=dp(15))
+        content.add_widget(Label(
+            text="MOVEMENT PREVIEW", font_size='16sp', bold=True,
+            color=(0.2, 1.0, 0.6, 1), size_hint_y=None, height=dp(26)
+        ))
+        content.add_widget(Label(
+            text=exercise.get('name', 'Exercise'), font_size='17sp', bold=True,
+            color=(1, 1, 1, 1), size_hint_y=None, height=dp(26)
+        ))
+        aid = archetype_for(exercise.get('name', ''), exercise.get('equip', ''), exercise.get('muscle', ''))
+        content.add_widget(StickmanWidget(archetype=aid, size_hint_y=None, height=dp(180)))
+        content.add_widget(Label(
+            text=exercise.get('tip', 'Focus on proper form and controlled movement.'),
+            font_size='14sp', bold=True, color=(0.2, 1.0, 0.6, 1),
+            halign='center', text_size=(dp(280), None), size_hint_y=None, height=dp(48)
+        ))
+
+        btn = Button(
+            text="CLOSE", bold=True, font_size='14sp',
+            size_hint_y=None, height=dp(44),
+            background_normal='', background_down='',
+            background_color=(0, 0, 0, 0), color=(0.07, 0.07, 0.07, 1)
+        )
+        with btn.canvas.before:
+            Color(0.2, 1.0, 0.6, 1)
+            RoundedRectangle(pos=btn.pos, size=btn.size, radius=[dp(14)])
+
+        def _redraw_btn(inst):
+            inst.canvas.before.clear()
+            with inst.canvas.before:
+                Color(0.2, 1.0, 0.6, 1)
+                RoundedRectangle(pos=inst.pos, size=inst.size, radius=[dp(14)])
+
+        btn.bind(pos=lambda inst, val: _redraw_btn(inst))
+        btn.bind(size=lambda inst, val: _redraw_btn(inst))
+        content.add_widget(btn)
+
+        popup = Popup(
+            title="", content=content, size_hint=(0.9, None), height=dp(400),
+            auto_dismiss=False, background=_POPUP_BG, background_color=(0.1, 0.1, 0.1, 1),
+            separator_height=0
+        )
+        btn.bind(on_press=popup.dismiss)
+        popup.open()
 
     def _on_checkbox(self, exercise_id, is_selected):
         """Handle checkbox change."""
