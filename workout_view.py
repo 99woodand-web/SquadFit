@@ -1549,6 +1549,13 @@ class WorkoutConsoleScreen(BoxLayout):
             text=f"Muscle: {ex.get('muscle', '?')} | Equipment: {ex.get('equip', '?')}",
             font_size='13sp', color=(0.7, 0.7, 0.7, 1), size_hint_y=None, height=dp(20)
         ))
+
+        # Animated stick-figure demo of the movement
+        from stickman import StickmanWidget, archetype_for
+        aid = archetype_for(ex.get('name', ''), ex.get('equip', ''), ex.get('muscle', ''))
+        stick = StickmanWidget(archetype=aid, size_hint_y=None, height=dp(170))
+        content.add_widget(stick)
+
         content.add_widget(Label(
             text=ex.get('tip', 'Focus on proper form and controlled movement.'),
             font_size='15sp', bold=True, color=(0.2, 1.0, 0.6, 1),
@@ -1576,7 +1583,7 @@ class WorkoutConsoleScreen(BoxLayout):
         content.add_widget(btn)
 
         popup = Popup(
-            title="", content=content, size_hint=(0.9, None), height=dp(370),
+            title="", content=content, size_hint=(0.9, None), height=dp(520),
             auto_dismiss=False, background=_POPUP_BG, background_color=(0.1, 0.1, 0.1, 1),
             separator_height=0
         )
