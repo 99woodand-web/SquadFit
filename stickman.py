@@ -101,6 +101,13 @@ def _elbow_ik_down(shoulder, hand):
     return (x1, y1) if y1 <= y2 else (x2, y2)
 
 
+def _elbow_fly(shoulder, hand):
+    """Nearly-straight elbow with a slight fixed bend (chest fly, top-down)."""
+    sx, sy = shoulder
+    hx, hy = hand
+    return (sx + 0.55 * (hx - sx), sy + 0.55 * (hy - sy) - 0.04)
+
+
 def _shoulder_at(hip, lean):
     return (hip[0] + T * math.sin(lean), hip[1] + T * math.cos(lean))
 
@@ -234,25 +241,25 @@ def pose_pull_v(ph):
 
 
 def pose_fly(ph):
-    """Chest fly — front view: arms sweep from wide to together at the chest."""
+    """Chest fly — TOP-DOWN view: lying on a bench, arms sweep wide -> together
+    over the chest, elbows nearly straight, dumbbells drawn end-on (both plates)."""
     d = _osc(ph)
-    hip = (0.0, 0.96)
-    near_ankle = (0.07, 0.04)
-    near_knee = (0.07, 0.04 + L2)
-    far_ankle = (-0.07, 0.04)
-    far_knee = (-0.07, 0.04 + L2)
-    shoulder = (0.0, hip[1] + T)
-    head = (0.0, shoulder[1] + HEAD * 1.05)
-    hand_x = 0.60 - 0.45 * d
-    near_hand = (hand_x, shoulder[1] - 0.02)
-    far_hand = (-hand_x, shoulder[1] - 0.02)
-    near_elbow = _elbow_ik_down(shoulder, near_hand)
-    far_elbow = _elbow_ik_down(shoulder, far_hand)
-    return dict(ankle=near_ankle, knee=near_knee, ankle2=far_ankle, knee2=far_knee,
-                hip=hip, shoulder=shoulder, head=head,
+    head = (0.0, 1.78)
+    shoulder = (0.0, 1.52)
+    hip = (0.0, 1.06)
+    knee = (0.0, 0.62)
+    ankle = (0.0, 0.16)
+    th = (math.pi / 2) * d                 # 0 = arms wide, 90deg = hands together
+    reach = 0.66 * math.cos(th)            # foreshortened lateral reach
+    drop = 0.08 * math.sin(th)             # hands converge over the chest (toward feet)
+    near_hand = (reach, shoulder[1] - drop)
+    far_hand = (-reach, shoulder[1] - drop)
+    near_elbow = _elbow_fly(shoulder, near_hand)
+    far_elbow = _elbow_fly(shoulder, far_hand)
+    return dict(ankle=ankle, knee=knee, hip=hip, shoulder=shoulder, head=head,
                 elbow=near_elbow, hand=near_hand, elbow2=far_elbow, hand2=far_hand,
-                plate=near_hand, plate2=far_hand, equipment='dumbbell',
-                highlight='torso', root='standing')
+                equipment='dumbbell_top', highlight='torso',
+                root='top_view', top_view=True, no_ground=True)
 
 
 def pose_pull_up(ph):
@@ -586,7 +593,7 @@ ARCHETYPES = [
     dict(id='squat',       name='Squat',            subtitle='legs · barbell',       pose=pose_squat),
     dict(id='hinge',       name='Hinge (Deadlift)', subtitle='legs · barbell',       pose=pose_hinge),
     dict(id='push_h',      name='Bench Press',      subtitle='chest · barbell',      pose=pose_push_h),
-    dict(id='fly',         name='Chest Fly',        subtitle='chest · cable',         pose=pose_fly),
+    dict(id='fly',         name='Chest Fly',        subtitle='chest · dumbbell',     pose=pose_fly),
     dict(id='push_v',      name='Overhead Press',   subtitle='shoulders · barbell',  pose=pose_push_v),
     dict(id='pull_h',      name='Bent-Over Row',    subtitle='back · dumbbell',      pose=pose_pull_h),
     dict(id='pull_v',      name='Lat Pulldown',     subtitle='back · cable',         pose=pose_pull_v),
@@ -624,20 +631,10 @@ def archetype_for(name='', equip='', muscle=''):
     def has(*words):
         return any(w in n for w in words)
 
-    # cardio / machines
-    if has('rowing machine', 'rower'):
-        return 'row_machine'
-    if has('cycling', 'spin bike', 'exercise bike', 'bike', 'jump rope', 'swimming', 'swim'):
-        return 'cycle'
-    if has('farmer', 'sled'):
-        return 'carry'
-    if has('run', 'walk', 'treadmill', 'elliptical', 'jog', 'sprint', 'stair',
-           'burpee', 'high knee'):
-        return 'carry'
-
-    # core
+    # core FIRST (before cardio) — 'crunch' contains 'run' and 'mountain
+    # climber' contains 'climb', so core must win over the cardio word list.
     if has('plank', 'shoulder tap', 'hollow', 'superman', 'dragon flag', 'l-sit',
-           'ab roller', 'mountain climber'):
+           'ab roller', 'mountain climber', 'pallof'):
         return 'plank'
     if has('crunch', 'sit-up', 'sit up', 'bicycle', 'russian twist', 'dead bug', 'woodchop'):
         return 'crunch'
@@ -646,7 +643,20 @@ def archetype_for(name='', equip='', muscle=''):
     if has('bridge', 'hip thrust'):
         return 'bridge'
 
+    # cardio / machines
+    if has('rowing machine', 'rower'):
+        return 'row_machine'
+    if has('cycling', 'spin bike', 'exercise bike', 'bike', 'jump rope', 'swimming', 'swim'):
+        return 'cycle'
+    if has('farmer', 'sled'):
+        return 'carry'
+    if has('run', 'walk', 'treadmill', 'elliptical', 'jog', 'sprint', 'stair',
+           'burpee', 'high knee', 'distance'):
+        return 'carry'
+
     # bodyweight press / lower
+    if has('handstand'):
+        return 'push_v'
     if has('push-up', 'push up', 'pushup'):
         return 'pushup'
     if has('calf'):
@@ -662,6 +672,10 @@ def archetype_for(name='', equip='', muscle=''):
     if has('seated row', 'seated cable row'):
         return 'cable_row'
 
+    # hinges (before kettlebell so 'snatch-grip deadlift' isn't caught by 'snatch')
+    if has('deadlift', 'good morning', 'romanian'):
+        return 'hinge'
+
     # kettlebell / explosive hip
     if has('kettlebell swing', 'swing', 'clean', 'snatch'):
         return 'kb_swing'
@@ -669,8 +683,14 @@ def archetype_for(name='', equip='', muscle=''):
     # arms / shoulders
     if has('lateral raise', 'front raise', 'halo'):
         return 'lateral'
+    if has('glute kickback'):
+        return 'bridge'
     if has('tricep', 'triceps', 'pushdown', 'skull crusher', 'kickback', 'overhead extension'):
         return 'tricep'
+    if has('reverse nordic'):
+        return 'leg_ext'
+    if has('nordic'):
+        return 'leg_curl'
     if has('curl'):
         return 'curl'
 
@@ -686,10 +706,9 @@ def archetype_for(name='', equip='', muscle=''):
     if has('row'):
         return 'pull_h'
 
-    # hinges / lower
-    if has('deadlift', 'good morning', 'romanian'):
-        return 'hinge'
-    if has('squat', 'lunge', 'leg press', 'hack squat', 'wall sit', 'step-up', 'step up'):
+    # lower
+    if has('squat', 'lunge', 'leg press', 'hack squat', 'wall sit', 'step-up', 'step up',
+           'box jump'):
         return 'squat'
 
     # presses
@@ -866,7 +885,50 @@ class StickmanWidget(Widget):
             self._seg(m['chain'][0], m['chain'][1], BAND + (0.8,), 1.5)
 
     # ── figure ──
+    def _draw_fly_top(self, p):
+        """Top-down chest fly: bench slab + body + two nearly-straight arms."""
+        h = p['highlight']
+        leg_c = NEON if h in ('legs', 'full') else DIM
+        arm_c = NEON if h in ('arms', 'full') else DIM
+        tor_c = NEON if h in ('torso', 'full') else DIM
+
+        # bench slab (seen from above: long, narrow, head end at the top)
+        self._fill_rect(-0.13, 1.95, 0.26, 1.92, (0.20, 0.20, 0.24))
+        self._fill_rect(-0.05, 1.92, 0.10, 1.86, (0.30, 0.32, 0.40))
+
+        # legs (both on top in a top-down view, feet toward the bottom)
+        for side in (-1, 1):
+            x = side * 0.05
+            self._seg((x, 0.16), (x, 0.60), leg_c, 6)
+            self._seg((x, 0.60), (0.0, 1.05), leg_c, 6)
+            self._dot((x, 0.60), leg_c, dp(4))
+
+        # torso + shoulder girdle
+        if tor_c == NEON:
+            self._seg(p['hip'], p['shoulder'], NEON + (0.25,), 16)
+        self._seg(p['hip'], p['shoulder'], tor_c, 7)
+        self._seg((-0.06, p['shoulder'][1]), (0.06, p['shoulder'][1]), tor_c, 5)
+
+        # head
+        self._dot(p['head'], DIM, HEAD * self._scale)
+
+        # arms (both equal weight — no near/far in a top-down view)
+        for ekey, hkey in (('elbow', 'hand'), ('elbow2', 'hand2')):
+            self._seg(p['shoulder'], p[ekey], arm_c, 6)
+            self._seg(p[ekey], p[hkey], arm_c, 6)
+            self._dot(p[ekey], arm_c, dp(3))
+
+        # dumbbells (top-down: short handle + a plate on each end)
+        for hkey in ('hand', 'hand2'):
+            hx, hy = p[hkey]
+            self._seg((hx, hy - 0.075), (hx, hy + 0.075), BAR, 3)
+            self._dot((hx, hy - 0.075), PLATE, 0.055 * self._scale)
+            self._dot((hx, hy + 0.075), PLATE, 0.055 * self._scale)
+
     def _draw_figure(self, p):
+        if p.get('top_view'):
+            self._draw_fly_top(p)
+            return
         h = p['highlight']
         leg_c = NEON if h in ('legs', 'full') else DIM
         arm_c = NEON if h in ('arms', 'full') else DIM

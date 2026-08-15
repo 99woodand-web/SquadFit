@@ -205,22 +205,22 @@
             anchor:[0.02, shoulder[1]+1.0], highlight:'torso', root:'seated'};
   }
 
-  // chest fly — front view: arms sweep from wide to together at the chest
+  // chest fly — TOP-DOWN view: lying on a bench, arms sweep wide → together
+  function elbowFly(shoulder, hand){
+    return [shoulder[0]+0.55*(hand[0]-shoulder[0]), shoulder[1]+0.55*(hand[1]-shoulder[1])-0.04];
+  }
   function poseFly(ph){
     const d=osc(ph);
-    const hip=[0,0.96];
-    const nearAnkle=[0.07,0.04], nearKnee=[0.07,0.04+L2];
-    const farAnkle=[-0.07,0.04], farKnee=[-0.07,0.04+L2];
-    const shoulder=[0, hip[1]+T];
-    const head=[0, shoulder[1]+HEAD*1.05];
-    const handX=0.60 - 0.45*d;
-    const nearHand=[handX, shoulder[1]-0.02], farHand=[-handX, shoulder[1]-0.02];
-    const nearElbow=elbowIKdown(shoulder, nearHand);
-    const farElbow=elbowIKdown(shoulder, farHand);
-    return {ankle:nearAnkle,knee:nearKnee,ankle2:farAnkle,knee2:farKnee,
-            hip,shoulder,head,elbow:nearElbow,hand:nearHand,
-            elbow2:farElbow,hand2:farHand,plate:nearHand,plate2:farHand,
-            equipment:'dumbbell', highlight:'torso', root:'standing'};
+    const head=[0,1.78], shoulder=[0,1.52], hip=[0,1.06], knee=[0,0.62], ankle=[0,0.16];
+    const th=(Math.PI/2)*d;                     // 0 = arms wide, 90deg = hands together
+    const reach=0.66*Math.cos(th);             // foreshortened lateral reach
+    const drop=0.08*Math.sin(th);              // hands converge over the chest (toward feet)
+    const nearHand=[reach, shoulder[1]-drop], farHand=[-reach, shoulder[1]-drop];
+    const nearElbow=elbowFly(shoulder, nearHand), farElbow=elbowFly(shoulder, farHand);
+    return {ankle,knee,hip,shoulder,head,elbow:nearElbow,hand:nearHand,
+            elbow2:farElbow,hand2:farHand,
+            equipment:'dumbbell_top', highlight:'torso', root:'top_view',
+            topView:true, noGround:true};
   }
 
   // pull-up — hanging from an overhead bar, body rises as arms bend
@@ -532,7 +532,7 @@
     { id:'squat',    name:'Squat',             subtitle:'legs · barbell',       pose:poseSquat },
     { id:'hinge',    name:'Hinge (Deadlift)',  subtitle:'legs · barbell',       pose:poseHinge },
     { id:'push_h',   name:'Bench Press',       subtitle:'chest · barbell',      pose:posePushH },
-    { id:'fly',      name:'Chest Fly',         subtitle:'chest · cable',         pose:poseFly },
+    { id:'fly',      name:'Chest Fly',         subtitle:'chest · dumbbell',     pose:poseFly },
     { id:'push_v',   name:'Overhead Press',    subtitle:'shoulders · barbell',  pose:posePushV },
     { id:'pull_h',   name:'Bent-Over Row',     subtitle:'back · dumbbell',      pose:posePullH },
     { id:'pull_v',   name:'Lat Pulldown',      subtitle:'back · cable',         pose:posePullV },
@@ -662,7 +662,46 @@
     if (m.chain) seg(m.chain[0], m.chain[1], [...BAND,0.8], 1.5);
   }
 
+  function drawFlyTop(p){                    // top-down chest fly: bench + body + arms
+    const h=p.highlight;
+    const legC=(h==='legs'||h==='full')?NEON:DIM;
+    const armC=(h==='arms'||h==='full')?NEON:DIM;
+    const torC=(h==='torso'||h==='full')?NEON:DIM;
+    // bench slab (seen from above: long, narrow, head end at the top)
+    ctx.fillStyle='rgba(51,51,61,1)';
+    ctx.fillRect(X(-0.13), Y(1.95), 0.26*scale, 1.92*scale);
+    ctx.fillStyle='rgba(77,82,102,1)';
+    ctx.fillRect(X(-0.05), Y(1.92), 0.10*scale, 1.86*scale);
+    // legs (both on top, feet toward the bottom)
+    for (const side of [-1,1]){
+      const x=side*0.05;
+      seg([x,0.16],[x,0.60],legC,6);
+      seg([x,0.60],[0,1.05],legC,6);
+      dot([x,0.60],legC,4);
+    }
+    // torso + shoulder girdle
+    if (torC===NEON) seg(p.hip,p.shoulder,[...NEON,0.25],16);
+    seg(p.hip,p.shoulder,torC,7);
+    seg([-0.06,p.shoulder[1]],[0.06,p.shoulder[1]],torC,5);
+    // head
+    dot(p.head,DIM,HEAD*scale);
+    // arms (both equal weight — no near/far from above)
+    for (const [ek,hk] of [['elbow','hand'],['elbow2','hand2']]){
+      seg(p.shoulder,p[ek],armC,6);
+      seg(p[ek],p[hk],armC,6);
+      dot(p[ek],armC,3);
+    }
+    // dumbbells (top-down: short handle + a plate on each end)
+    for (const hk of ['hand','hand2']){
+      const [hx,hy]=p[hk];
+      seg([hx,hy-0.075],[hx,hy+0.075],BAR,3);
+      dot([hx,hy-0.075],PLATE,0.055*scale);
+      dot([hx,hy+0.075],PLATE,0.055*scale);
+    }
+  }
+
   function drawFigure(p){
+    if (p.topView){ drawFlyTop(p); return; }
     const h=p.highlight;
     const legC=(h==='legs'||h==='full')?NEON:DIM;
     const armC=(h==='arms'||h==='full')?NEON:DIM;
