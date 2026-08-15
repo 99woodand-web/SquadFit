@@ -169,6 +169,13 @@ except Exception as e:
     raise
 
 try:
+    from exercise_library_view import ExerciseLibraryScreen
+    _log_crash("Imported: ExerciseLibraryScreen")
+except Exception as e:
+    _log_crash(f"FAILED import ExerciseLibraryScreen: {e}")
+    raise
+
+try:
     from theme_manager import ThemeManager
     _log_crash("Imported: ThemeManager")
 except Exception as e:
@@ -266,6 +273,7 @@ class SquadFitApp(MDApp):
             ("calendar", CalendarScreen),
             ("workout", WorkoutScreen),
             ("exercises", ExerciseSelectionScreenWrapper),
+            ("library", ExerciseLibraryScreen),
             ("progress", ProgressScreenWrapper),
             ("aicoach", AICoachScreenWrapper),
             ("stretch", StretchView),

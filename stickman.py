@@ -756,6 +756,11 @@ class StickmanWidget(Widget):
     def stop(self):
         Clock.unschedule(self._tick)
 
+    def start(self, fps=40):
+        """(Re)start the animation clock (e.g. when re-entering a screen)."""
+        Clock.unschedule(self._tick)
+        Clock.schedule_interval(self._tick, 1.0 / fps)
+
     # ── animation / lifecycle ──
     def _tick(self, dt):
         win = self.get_root_window()

@@ -315,6 +315,7 @@ class CalendarViewScreen(BoxLayout):
 
         inner.add_widget(Label(text="SETTINGS", font_size='16sp', bold=True, color=(0.2, 1.0, 0.6, 1), size_hint_y=None, height=dp(30)))
         inner.add_widget(make_popup_btn("Update Profile", (0.22, 0.22, 0.22, 1), (0.2, 1.0, 0.6, 1), lambda x: self._popup_dismiss_and_navigate('onboarding')))
+        inner.add_widget(make_popup_btn("Exercise Library", (0.22, 0.22, 0.22, 1), (0.2, 1.0, 0.6, 1), lambda x: self._popup_dismiss_and_navigate('library')))
 
         # Theme buttons — actual colours
         bg_box = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(40))
@@ -338,7 +339,7 @@ class CalendarViewScreen(BoxLayout):
         outer = BoxLayout(orientation='vertical', padding=[0, dp(14), 0, 0])
         outer.add_widget(inner)
 
-        self.settings_popup = Popup(title="", content=outer, size_hint=(0.75, None), height=dp(340),
+        self.settings_popup = Popup(title="", content=outer, size_hint=(0.75, None), height=dp(390),
             auto_dismiss=True, background=_POPUP_BG, background_color=(0.1, 0.1, 0.1, 1), separator_height=0)
         self.settings_popup.open()
 
