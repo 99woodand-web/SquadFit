@@ -123,6 +123,25 @@ def _osc(ph):
     return 0.5 - 0.5 * math.cos(2 * math.pi * ph)
 
 
+def _sstep(a, b, ph):
+    """Smoothstep of (ph-a)/(b-a), clamped to [0,1]."""
+    t = (ph - a) / (b - a)
+    t = max(0.0, min(1.0, t))
+    return t * t * (3.0 - 2.0 * t)
+
+
+def _ease_in(u):
+    return u * u
+
+
+def _ease_out(u):
+    return 1.0 - (1.0 - u) * (1.0 - u)
+
+
+def _lerp(a, b, t):
+    return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+
+
 def _foot_ang(ph):
     """Foot angle over a gait cycle: heel-strike -> flat (pause) -> toe-off."""
     if ph < 0.5:
@@ -368,9 +387,7 @@ def pose_lateral(ph):
                 equipment='dumbbell', highlight='arms', root='standing')
 
 
-def _leg_at(ph):
-    stride = 0.40
-    lift = 0.14
+def _leg_at(ph, stride=0.40, lift=0.14):
     foot_y = 0.04
     if ph < 0.5:
         t = ph * 2
@@ -408,6 +425,36 @@ def pose_carry(ph):
                 hip=hip, shoulder=shoulder, head=head, elbow=elbow, hand=hand,
                 plate=hand, equipment='dumbbell', foot_ang=near['ang'],
                 foot_ang2=far['ang'], highlight='full', root='standing')
+
+
+def _run_arm(ph, shoulder):
+    """Pumping arm for running: bent elbow, hand swings forward/back at the hip."""
+    swing = math.sin(2 * math.pi * ph)
+    elbow = (shoulder[0] + 0.10 * swing, shoulder[1] - 0.30)
+    hand = (shoulder[0] + 0.35 * swing, shoulder[1] - 0.50)
+    return elbow, hand
+
+
+def pose_run(ph):
+    """Running (side view): faster gait, higher knee lift, pumping arms, no weights."""
+    near = _leg_at(ph, stride=0.55, lift=0.24)
+    far = _leg_at((ph + 0.5) % 1, stride=0.55, lift=0.24)
+    bob = -0.05 * math.sin(4 * math.pi * ph)
+    lean = 0.18
+    hip = (0.0, 0.93 + bob)
+    near_ankle = (near['x'] + 0.02, near['y'])
+    far_ankle = (far['x'] - 0.02, far['y'])
+    near_knee = _knee_ik(hip, near_ankle)
+    far_knee = _knee_ik(hip, far_ankle)
+    shoulder = _shoulder_at(hip, lean)
+    head = _head_at(shoulder, lean)
+    near_elbow, near_hand = _run_arm(ph, shoulder)
+    far_elbow, far_hand = _run_arm((ph + 0.5) % 1, shoulder)
+    return dict(ankle=near_ankle, knee=near_knee, ankle2=far_ankle, knee2=far_knee,
+                hip=hip, shoulder=shoulder, head=head,
+                elbow=near_elbow, hand=near_hand, elbow2=far_elbow, hand2=far_hand,
+                plate=None, equipment='bodyweight', foot_ang=near['ang'],
+                foot_ang2=far['ang'], highlight='legs', root='standing')
 
 
 def pose_cycle(ph):
@@ -590,6 +637,267 @@ def pose_row_machine(ph):
                              chain=(hand, (0.46, 0.30))))
 
 
+def pose_swim(ph):
+    """Front crawl, side view: horizontal body, flutter kick + windmill arms."""
+    t = 2 * math.pi * ph
+    y = 0.10                     # body line sits on the water surface (head toward +x)
+    hip = (0.0, y)
+    shoulder = (T, y)
+    head = (T + HEAD * 1.05, y)
+
+    # flutter kick: legs nearly straight, feet scissor up/down in opposite phase
+    kick = 0.10
+    a1 = kick * math.sin(t)
+    a2 = kick * math.sin(t + math.pi)
+    near_ankle = (-L1 - L2, y + a1)
+    near_knee = (-L1, y + 0.45 * a1)
+    far_ankle = (-L1 - L2, y + a2)
+    far_knee = (-L1, y + 0.45 * a2)
+
+    # front-crawl windmill arms, 180° out of phase
+    # hand path: forward -> down (pull) -> back (exit) -> up (recovery) -> forward
+    R = UA + FA - 0.03           # ~0.66 => slight, natural elbow bend
+    cx = shoulder[0] + 0.03
+    near_hand = (cx + R * math.cos(t), shoulder[1] - R * math.sin(t))
+    far_hand = (cx + R * math.cos(t + math.pi), shoulder[1] - R * math.sin(t + math.pi))
+    near_elbow = _elbow_ik(shoulder, near_hand, True)
+    far_elbow = _elbow_ik(shoulder, far_hand, True)
+
+    return dict(ankle=near_ankle, knee=near_knee, ankle2=far_ankle, knee2=far_knee,
+                hip=hip, shoulder=shoulder, head=head,
+                elbow=near_elbow, hand=near_hand, elbow2=far_elbow, hand2=far_hand,
+                water=0.0, equipment='bodyweight', highlight='full',
+                root='floor', no_ground=True)
+
+
+def pose_burpee(ph):
+    """Burpee (side view): squat-thrust -> kick back to plank -> return -> jump."""
+    stand = dict(hip=(0.0, 0.96), shoulder=(0.0, 1.44), head=(0.0, 1.58),
+                 hand=(0.04, 0.76), elbow=(0.04, 1.07), ankle=(0.0, 0.04))
+    squat = dict(hip=(-0.06, 0.40), shoulder=(0.30, 0.72), head=(0.39, 0.82),
+                 hand=(0.40, 0.05), elbow=(0.42, 0.36), ankle=(0.02, 0.04))
+    plank = dict(hip=(0.119, 0.488), shoulder=(0.554, 0.69), head=(0.654, 0.81),
+                 hand=(0.40, 0.0), elbow=(0.47, 0.32), ankle=(-0.716, 0.04))
+    jump = dict(hip=(0.0, 0.92), shoulder=(0.0, 1.40), head=(0.0, 1.54),
+                hand=(0.0, 2.09), elbow=(0.0, 1.78), ankle=(0.0, 0.32))
+
+    kfs = [(0.0, stand), (0.28, squat), (0.48, plank), (0.68, squat), (0.88, jump), (1.0, stand)]
+    i = 0
+    while i < len(kfs) - 2 and ph >= kfs[i + 1][0]:
+        i += 1
+    p0, k0 = kfs[i]
+    p1, k1 = kfs[i + 1]
+    t = _sstep(p0, p1, ph)
+
+    hip = _lerp(k0['hip'], k1['hip'], t)
+    shoulder = _lerp(k0['shoulder'], k1['shoulder'], t)
+    head = _lerp(k0['head'], k1['head'], t)
+    hand = _lerp(k0['hand'], k1['hand'], t)
+    elbow = _lerp(k0['elbow'], k1['elbow'], t)
+    ankle = _lerp(k0['ankle'], k1['ankle'], t)
+    knee = _knee_ik(hip, ankle)
+
+    return dict(ankle=ankle, knee=knee, hip=hip, shoulder=shoulder, head=head,
+                elbow=elbow, hand=hand, plate=None, equipment='bodyweight',
+                highlight='full', root='standing')
+
+
+def pose_box_jump(ph):
+    """Box jump (side view): deep load -> explosive launch -> land on the box -> pause -> restart from the first frame."""
+    stand = dict(hip=(-0.30, 0.96), shoulder=(-0.30, 1.44), head=(-0.30, 1.58),
+                 hand=(-0.26, 0.76), elbow=(-0.26, 1.07), ankle=(-0.30, 0.04))
+    load = dict(hip=(-0.34, 0.46), shoulder=(-0.28, 0.98), head=(-0.21, 1.10),
+                hand=(-0.81, 0.54), elbow=(-0.57, 0.74), ankle=(-0.30, 0.04))
+    launch = dict(hip=(-0.22, 0.85), shoulder=(-0.14, 1.33), head=(-0.10, 1.45),
+                  hand=(0.35, 1.82), elbow=(0.13, 1.60), ankle=(-0.18, 0.12))
+    air = dict(hip=(0.05, 1.24), shoulder=(0.05, 1.72), head=(0.05, 1.86),
+               hand=(0.73, 1.84), elbow=(0.42, 1.79), ankle=(0.10, 0.55))
+    land = dict(hip=(0.33, 0.80), shoulder=(0.38, 1.28), head=(0.42, 1.41),
+                hand=(1.03, 1.05), elbow=(0.74, 1.15), ankle=(0.35, 0.32))
+    atop = dict(hip=(0.35, 1.24), shoulder=(0.35, 1.72), head=(0.35, 1.86),
+                hand=(0.39, 1.04), elbow=(0.39, 1.35), ankle=(0.35, 0.32))
+
+    # Ascent keyframes: fraction -> pose -> easing into that segment.
+    up = [(0.00, stand, 'io'), (0.22, load, 'io'), (0.40, launch, 'out'),
+          (0.58, air, 'out'), (0.72, land, 'in'), (0.86, atop, 'io')]
+
+    def sample(f):
+        f = max(0.0, min(1.0, f))
+        p0, k0, _ = up[0]
+        for p1, k1, mode in up[1:]:
+            if f <= p1:
+                u = (f - p0) / (p1 - p0)
+                if mode == 'out':
+                    t = _ease_out(u)
+                elif mode == 'in':
+                    t = _ease_in(u)
+                else:
+                    t = _sstep(0.0, 1.0, u)
+                return {key: _lerp(k0[key], k1[key], t) for key in k0}
+            p0, k0 = p1, k1
+        return dict(atop)
+
+    # Timeline: 0.00-0.55 jump up, 0.55-0.85 hold on the box, 0.85-1.00 reset to the start.
+    if ph < 0.55:
+        pose = sample(ph / 0.55)
+    elif ph < 0.85:
+        pose = dict(atop)
+    else:
+        pose = dict(stand)
+
+    hip = pose['hip']
+    shoulder = pose['shoulder']
+    head = pose['head']
+    hand = pose['hand']
+    elbow = pose['elbow']
+    ankle = pose['ankle']
+    knee = _knee_ik(hip, ankle)
+
+    return dict(ankle=ankle, knee=knee, hip=hip, shoulder=shoulder, head=head,
+                elbow=elbow, hand=hand, plate=None, equipment='bodyweight',
+                highlight='legs', root='standing', box=(0.05, 0.70, 0.32))
+
+
+def pose_battle_ropes(ph):
+    """Battle ropes: low hinge stance, two arms whip ropes in opposite phase."""
+    t = 2 * math.pi * ph
+    bob = 0.03 * math.sin(t)
+    hip = (-0.60, 0.70 + bob)
+    ankle = (-0.60, 0.04)
+    knee = _knee_ik(hip, ankle)
+    shoulder = (-0.36, 1.16 + bob)
+    head = (-0.30, 1.28 + bob)
+    hy1 = 0.80 + 0.24 * math.sin(t)
+    hy2 = 0.80 + 0.24 * math.sin(t + math.pi)
+    hand = (-0.02, hy1)
+    hand2 = (-0.08, hy2)
+    elbow = _elbow_ik(shoulder, hand, False)
+    elbow2 = _elbow_ik(shoulder, hand2, False)
+    anchor = (0.72, 0.03)
+    return dict(ankle=ankle, knee=knee, hip=hip, shoulder=shoulder, head=head,
+                elbow=elbow, hand=hand, elbow2=elbow2, hand2=hand2,
+                ropes=[(anchor, hand), (anchor, hand2)],
+                plate=None, equipment='bodyweight', highlight='arms', root='standing')
+
+
+def pose_sled_push(ph):
+    """Sled push: staggered low stance, arms drive a weighted sled forward."""
+    d = _osc(ph)
+    hip = (-0.42, 0.66)
+    ankle = (-0.35, 0.04)
+    knee = _knee_ik(hip, ankle)
+    ankle2 = (-0.06, 0.04)
+    knee2 = _knee_ik(hip, ankle2)
+    shoulder = (-0.02 + 0.05 * d, 1.00 - 0.03 * d)
+    head = (0.06 + 0.05 * d, 1.12 - 0.03 * d)
+    hand = (0.45, 0.82)
+    hand2 = (0.50, 0.78)
+    elbow = _elbow_ik(shoulder, hand, True)
+    elbow2 = _elbow_ik(shoulder, hand2, True)
+    return dict(ankle=ankle, knee=knee, ankle2=ankle2, knee2=knee2,
+                hip=hip, shoulder=shoulder, head=head,
+                elbow=elbow, hand=hand, elbow2=elbow2, hand2=hand2,
+                sled=(0.50, 0.92), plate=None, equipment='bodyweight',
+                highlight='legs', root='standing')
+
+
+def pose_jump_rope(ph):
+    """Jump rope (front view): both feet hop together, a rope arc sweeps overhead."""
+    t = 2 * math.pi * ph
+    hop = 0.10 * max(0.0, -math.sin(t))
+    hip = (0.0, 0.90 + hop)
+    near_ankle = (0.07, 0.04 + hop)
+    near_knee = (0.07, 0.04 + hop + L2)
+    far_ankle = (-0.07, 0.04 + hop)
+    far_knee = (-0.07, 0.04 + hop + L2)
+    shoulder = (0.0, hip[1] + T)
+    head = (0.0, shoulder[1] + HEAD * 1.05)
+    hand = (0.20, 0.70 + hop)
+    elbow = (0.16, 1.02 + hop)
+    hand2 = (-0.20, 0.70 + hop)
+    elbow2 = (-0.16, 1.02 + hop)
+    apex = 0.75 + 1.0 * math.sin(t)
+    return dict(ankle=near_ankle, knee=near_knee, ankle2=far_ankle, knee2=far_knee,
+                hip=hip, shoulder=shoulder, head=head,
+                elbow=elbow, hand=hand, elbow2=elbow2, hand2=hand2,
+                rope=(hand, hand2, apex), plate=None, equipment='bodyweight',
+                highlight='legs', root='standing')
+
+
+def _high_knee_leg(ph):
+    if ph < 0.5:
+        return (0.0, 0.04)
+    u = (ph - 0.5) * 2
+    return (0.0, 0.04 + 0.40 * math.sin(math.pi * u))
+
+
+def pose_high_knees(ph):
+    """High knees: run on the spot, knees drive to hip height, arms pump."""
+    near_ankle = _high_knee_leg(ph)
+    far_ankle = _high_knee_leg((ph + 0.5) % 1)
+    bob = -0.05 * math.sin(4 * math.pi * ph)
+    lean = 0.10
+    hip = (0.0, 0.92 + bob)
+    near_knee = _knee_ik(hip, near_ankle)
+    far_knee = _knee_ik(hip, far_ankle)
+    shoulder = _shoulder_at(hip, lean)
+    head = _head_at(shoulder, lean)
+    near_elbow, near_hand = _run_arm(ph, shoulder)
+    far_elbow, far_hand = _run_arm((ph + 0.5) % 1, shoulder)
+    return dict(ankle=near_ankle, knee=near_knee, ankle2=far_ankle, knee2=far_knee,
+                hip=hip, shoulder=shoulder, head=head,
+                elbow=near_elbow, hand=near_hand, elbow2=far_elbow, hand2=far_hand,
+                plate=None, equipment='bodyweight', highlight='legs', root='standing')
+
+
+def pose_stair_climb(ph):
+    """Stair climber: static mid-stride pose on a 3-step staircase.
+
+    Front foot planted on the 2nd step, back foot on the 1st step, torso
+    leaning into the climb, one arm swung forward and one back.
+    """
+    step_h = 0.22
+    bob = 0.006 * math.sin(2 * math.pi * ph)          # imperceptible idle sway
+    hip = (-0.20, 1.14 + bob)
+    near_ankle = (-0.12, 2 * step_h + 0.02)           # front foot on the 2nd step
+    far_ankle = (-0.34, step_h + 0.02)                # back foot on the 1st step
+    near_knee = _knee_ik(hip, near_ankle)
+    far_knee = _knee_ik(hip, far_ankle)
+    lean = 0.14                                       # torso leans forward into the climb
+    shoulder = _shoulder_at(hip, lean)
+    head = _head_at(shoulder, lean)
+    near_elbow, near_hand = _run_arm(0.25, shoulder)  # forward swing for balance
+    far_elbow, far_hand = _run_arm(0.75, shoulder)    # back swing
+    return dict(ankle=near_ankle, knee=near_knee, ankle2=far_ankle, knee2=far_knee,
+                hip=hip, shoulder=shoulder, head=head,
+                elbow=near_elbow, hand=near_hand, elbow2=far_elbow, hand2=far_hand,
+                stairs=(-0.34, 3, step_h), plate=None, equipment='bodyweight',
+                highlight='legs', root='standing',
+                foot_ang=0.0, foot_ang2=-0.22)
+
+
+def pose_elliptical(ph):
+    """Elliptical: feet trace a forward ellipse, arms push/pull the handles."""
+    t = 2 * math.pi * ph
+    hip = (0.0, 0.95)
+    p1 = (0.10 + 0.28 * math.cos(t), 0.30 - 0.15 * math.sin(t))
+    p2 = (0.10 + 0.28 * math.cos(t + math.pi), 0.30 - 0.15 * math.sin(t + math.pi))
+    near_knee = _knee_ik(hip, p1)
+    far_knee = _knee_ik(hip, p2)
+    shoulder = (0.0, hip[1] + T)
+    head = (0.0, shoulder[1] + HEAD * 1.05)
+    h1 = (0.35 + 0.12 * math.cos(t + math.pi), 1.12 - 0.05 * math.sin(t + math.pi))
+    h2 = (0.35 + 0.12 * math.cos(t), 1.12 - 0.05 * math.sin(t))
+    near_elbow = _elbow_ik(shoulder, h1, False)
+    far_elbow = _elbow_ik(shoulder, h2, False)
+    return dict(ankle=p1, knee=near_knee, ankle2=p2, knee2=far_knee,
+                hip=hip, shoulder=shoulder, head=head,
+                elbow=near_elbow, hand=h1, elbow2=far_elbow, hand2=h2,
+                elliptical=dict(pivot=(0.52, 0.98), pedal1=p1, pedal2=p2,
+                                hand1=h1, hand2=h2),
+                plate=None, equipment='machine', highlight='full', root='standing')
+
+
 ARCHETYPES = [
     dict(id='squat',       name='Squat',            subtitle='legs · barbell',       pose=pose_squat),
     dict(id='hinge',       name='Hinge (Deadlift)', subtitle='legs · barbell',       pose=pose_hinge),
@@ -605,6 +913,7 @@ ARCHETYPES = [
     dict(id='plank',       name='Plank',            subtitle='core · hold',          pose=pose_plank),
     dict(id='lateral',     name='Lateral Raise',    subtitle='shoulders · dumbbell', pose=pose_lateral),
     dict(id='carry',       name="Farmer's Carry",   subtitle='full body · dumbbells', pose=pose_carry),
+    dict(id='run',          name='Running',           subtitle='cardio · legs',        pose=pose_run),
     dict(id='cycle',       name='Cycling',          subtitle='cardio · legs',        pose=pose_cycle),
     dict(id='calf',        name='Calf Raise',       subtitle='calves · bodyweight',  pose=pose_calf),
     dict(id='crunch',      name='Crunch',           subtitle='core · bodyweight',    pose=pose_crunch),
@@ -615,11 +924,20 @@ ARCHETYPES = [
     dict(id='leg_curl',    name='Leg Curl',         subtitle='hamstrings · machine', pose=pose_leg_curl),
     dict(id='cable_row',   name='Seated Cable Row', subtitle='back · machine',       pose=pose_cable_row),
     dict(id='row_machine', name='Rowing Machine',   subtitle='cardio · full body',   pose=pose_row_machine),
+    dict(id='swim',         name='Swimming',          subtitle='cardio · full body',   pose=pose_swim),
+    dict(id='burpee',       name='Burpee',            subtitle='cardio · full body',   pose=pose_burpee),
+    dict(id='box_jump',     name='Box Jump',          subtitle='cardio · legs',        pose=pose_box_jump),
+    dict(id='battle_ropes',  name='Battle Ropes',      subtitle='cardio · arms',        pose=pose_battle_ropes),
+    dict(id='sled_push',     name='Sled Push',         subtitle='cardio · legs',        pose=pose_sled_push),
+    dict(id='jump_rope',     name='Jump Rope',         subtitle='cardio · legs',        pose=pose_jump_rope),
+    dict(id='high_knees',    name='High Knees',        subtitle='cardio · legs',        pose=pose_high_knees),
+    dict(id='stair_climb',   name='Stair Climber',     subtitle='cardio · legs',        pose=pose_stair_climb),
+    dict(id='elliptical',    name='Elliptical',        subtitle='cardio · full body',   pose=pose_elliptical),
 ]
 
 ARCHETYPE_BY_ID = {a['id']: a for a in ARCHETYPES}
 
-CYCLES = {'plank': 3.0, 'carry': 1.0, 'cycle': 1.2}
+CYCLES = {'plank': 3.0, 'carry': 1.0, 'run': 0.8, 'cycle': 1.2, 'swim': 1.2, 'burpee': 2.4, 'box_jump': 4.0, 'battle_ropes': 1.2, 'sled_push': 1.6, 'jump_rope': 0.8, 'high_knees': 0.9, 'stair_climb': 3.0, 'elliptical': 1.4}
 
 
 def archetype_for(name='', equip='', muscle=''):
@@ -647,12 +965,29 @@ def archetype_for(name='', equip='', muscle=''):
     # cardio / machines
     if has('rowing machine', 'rower'):
         return 'row_machine'
-    if has('cycling', 'spin bike', 'exercise bike', 'bike', 'jump rope', 'swimming', 'swim'):
+    if has('battle rope'):
+        return 'battle_ropes'
+    if has('swimming', 'swim', 'freestyle', 'backstroke', 'breaststroke', 'butterfly'):
+        return 'swim'
+    if has('jump rope'):
+        return 'jump_rope'
+    if has('cycling', 'spin bike', 'exercise bike', 'bike'):
         return 'cycle'
-    if has('farmer', 'sled'):
+    if has('elliptical'):
+        return 'elliptical'
+    if has('stair'):
+        return 'stair_climb'
+    if has('high knee'):
+        return 'high_knees'
+    if has('farmer'):
         return 'carry'
-    if has('run', 'walk', 'treadmill', 'elliptical', 'jog', 'sprint', 'stair',
-           'burpee', 'high knee', 'distance'):
+    if has('sled'):
+        return 'sled_push'
+    if has('burpee'):
+        return 'burpee'
+    if has('run', 'jog', 'sprint', 'distance'):
+        return 'run'
+    if has('walk', 'treadmill'):
         return 'carry'
 
     # bodyweight press / lower
@@ -708,8 +1043,9 @@ def archetype_for(name='', equip='', muscle=''):
         return 'pull_h'
 
     # lower
-    if has('squat', 'lunge', 'leg press', 'hack squat', 'wall sit', 'step-up', 'step up',
-           'box jump'):
+    if has('box jump'):
+        return 'box_jump'
+    if has('squat', 'lunge', 'leg press', 'hack squat', 'wall sit', 'step-up', 'step up'):
         return 'squat'
 
     # presses
@@ -784,8 +1120,8 @@ class StickmanWidget(Widget):
         self._scale = self.height * 0.92 / 2.05
         self._gy = self.y + self.height * 0.06
 
-        if a['id'] == 'carry':
-            stride = 0.40
+        if a['id'] in ('carry', 'run'):
+            stride = 0.55 if a['id'] == 'run' else 0.40
             fig_half = 0.6 * self._scale
             span = self.width + 2 * fig_half
             dist_px = (2 * stride * (self._t / cycle)) * self._scale
@@ -894,6 +1230,85 @@ class StickmanWidget(Widget):
         if 'chain' in m:
             self._seg(m['chain'][0], m['chain'][1], BAND + (0.8,), 1.5)
 
+    def _draw_water(self, y):
+        """Animated water surface (swimming)."""
+        self._fill_rect(-1.05, y, 2.1, 0.32, (0.30, 0.56, 0.82, 0.35))
+        for i in range(20):
+            x0 = -1.05 + i * 0.105
+            x1 = x0 + 0.105
+            y0 = y + 0.022 * math.sin(i * 0.9 + self._t * 3.0)
+            y1 = y + 0.022 * math.sin((i + 1) * 0.9 + self._t * 3.0)
+            self._seg((x0, y0), (x1, y1), (0.40, 0.66, 0.90), 2)
+
+    def _draw_rope(self, h1, h2, ay):
+        """Jump-rope arc from hand to hand, apex riding the swing phase."""
+        color = (0.75, 0.62, 0.40)
+        prev = None
+        for i in range(17):
+            f = i / 16.0
+            x = h1[0] + (h2[0] - h1[0]) * f
+            y = h1[1] + (h2[1] - h1[1]) * f + (ay - h1[1]) * 4.0 * f * (1.0 - f)
+            pt = (x, y)
+            if prev is not None:
+                self._seg(prev, pt, color, 2)
+            prev = pt
+
+    def _draw_stairs(self, s):
+        """Static staircase (stair climber): a solid 3-step block under the feet."""
+        x0, n, step_h = s
+        w = 0.20
+        for k in range(n):
+            x = x0 + k * w
+            y_top = (k + 1) * step_h
+            self._fill_rect(x, y_top, w, y_top, (0.30, 0.30, 0.36))
+            self._seg((x, y_top), (x + w, y_top), (0.42, 0.42, 0.48), 1.5)
+            self._seg((x + w, y_top), (x + w, k * step_h), (0.34, 0.34, 0.40), 1.5)
+
+    def _draw_elliptical(self, m):
+        """Elliptical machine: base + console post + flywheel + handle arms + pedals."""
+        self._fill_rect(-0.45, 0.10, 0.90, 0.10, (0.32, 0.32, 0.38))
+        self._seg((0.52, 0.10), (0.52, 0.98), STEEL, 4)
+        self._circle((0.52, 0.60), (0.45, 0.47, 0.55), 0.14 * self._scale, 3)
+        pivot = m['pivot']
+        for hk in ('hand1', 'hand2'):
+            self._seg(pivot, m[hk], STEEL, 3)
+        for pk in ('pedal1', 'pedal2'):
+            px, py = m[pk]
+            self._seg((px - 0.07, py), (px + 0.07, py), BAR, 4)
+
+    def _draw_sled(self, s):
+        """Low weighted sled: runners + weight plates + handle posts."""
+        x0, x1 = s
+        top = 0.12
+        self._fill_rect(x0, top, x1 - x0, top, (0.32, 0.30, 0.34))
+        self._fill_rect(x0 + 0.08, 0.42, 0.10, 0.30, PLATE)
+        self._fill_rect(x0 + 0.26, 0.42, 0.10, 0.30, PLATE)
+        self._seg((x0, 0.10), (x0 - 0.02, 0.80), STEEL, 3)
+        self._seg((x0 + 0.08, 0.10), (x0 + 0.06, 0.80), STEEL, 3)
+        self._seg((x0 - 0.02, 0.80), (x0 + 0.06, 0.80), STEEL, 3)
+
+    def _draw_ropes(self, ropes):
+        """Wavy battle ropes from a floor anchor to each hand."""
+        color = (0.62, 0.40, 0.28)
+        anchor = ropes[0][0]
+        self._seg((anchor[0], 0.0), (anchor[0], 0.09), STEEL, 3)
+        for a, hand in ropes:
+            ax, ay = a
+            hx, hy = hand
+            dx, dy = hx - ax, hy - ay
+            L = math.hypot(dx, dy) or 1.0
+            px, py = -dy / L, dx / L
+            prev = None
+            for i in range(15):
+                f = i / 14.0
+                x = ax + dx * f
+                y = ay + dy * f
+                amp = 0.05 * math.sin(f * math.pi * 2.0 + self._t * 9.0) * math.sin(f * math.pi)
+                pt = (x + px * amp, y + py * amp)
+                if prev is not None:
+                    self._seg(prev, pt, color, 2)
+                prev = pt
+
     # ── figure ──
     def _draw_fly_top(self, p):
         """Top-down chest fly: bench slab + body + two nearly-straight arms."""
@@ -947,6 +1362,14 @@ class StickmanWidget(Widget):
         # ground + props
         if not p.get('no_ground'):
             self._seg((-0.9, 0.0), (0.9, 0.0), (0.30, 0.30, 0.35), 1)
+        if p.get('stairs'):
+            self._draw_stairs(p['stairs'])
+        if p.get('water') is not None:
+            self._draw_water(p['water'])
+        if p.get('box'):
+            x0, x1, top = p['box']
+            self._fill_rect(x0, top, x1 - x0, top, (0.34, 0.29, 0.26))
+            self._seg((x0, top), (x1, top), (0.46, 0.40, 0.36), 2)
         if p['root'] == 'lying':
             self._fill_rect(-0.95, 0.34, 1.9, 0.08, (0.235, 0.235, 0.275))
         if p['root'] == 'seated' and 'bike' not in p and 'machine' not in p:
@@ -974,6 +1397,15 @@ class StickmanWidget(Widget):
             self._seg((px1, py1), (px1, py1 - 0.20), STEEL, 2.5)
             self._seg((px2, py2), (px2, py2 - 0.20), STEEL, 2.5)
             self._seg((px1, py1), (px2, py2), STEEL, 3)
+        if p.get('ropes'):
+            self._draw_ropes(p['ropes'])
+        if p.get('sled'):
+            self._draw_sled(p['sled'])
+        if p.get('rope'):
+            h1, h2, ay = p['rope']
+            self._draw_rope(h1, h2, ay)
+        if p.get('elliptical'):
+            self._draw_elliptical(p['elliptical'])
 
         # legs
         if leg_c == NEON:

@@ -30,7 +30,7 @@
   <p id="subtitle">Squat · legs</p>
   <div id="controls"></div>
   <canvas id="stage"></canvas>
-  <div class="note">22 movement patterns drive all 151 exercises — each archetype is a few key poses plus an equipment prop.</div>
+  <div class="note">34 movement patterns drive all 151 exercises — each archetype is a few key poses plus an equipment prop.</div>
 
 <script>
 (function () {
@@ -92,6 +92,11 @@
 
   // smooth 0→1→0 over one cycle (phase 0..1)
   function osc(ph){ return 0.5 - 0.5*Math.cos(2*Math.PI*ph); }
+  // smoothstep of (ph-a)/(b-a) and 2D lerp (for multi-keyframe poses like burpee)
+  function sstep(a,b,ph){ const t=Math.max(0,Math.min(1,(ph-a)/(b-a))); return t*t*(3-2*t); }
+  function lerp(a,b,t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t]; }
+  function easeIn(u){ return u*u; }
+  function easeOut(u){ return 1-(1-u)*(1-u); }
   // foot angle over a gait cycle: quick heel-strike → flat (pause) → toe-off → dorsiflex
   function footAng(ph){
     if (ph < 0.5) {                        // stance
@@ -321,8 +326,8 @@
 
   // farmer's carry — side-view walk cycle with horizontal travel (see §5 gait)
   // one leg per full stride; the other leg is offset by half a phase (50/50 stance/swing)
-  function legAt(ph){
-    const stride=0.40, lift=0.14, footY=0.04;
+  function legAt(ph, stride=0.40, lift=0.14){
+    const footY=0.04;
     let x, y, ang;
     if (ph < 0.5){                                // stance — foot planted, travels back
       const t = ph*2;                             // 0→1 across stance
@@ -357,6 +362,32 @@
             hip,shoulder,head,elbow,hand,plate:hand,equipment:'dumbbell',
             footAng:near.ang, footAng2:far.ang,
             highlight:'full', root:'standing'};
+  }
+
+  function runArm(ph, shoulder){
+    const swing=Math.sin(2*Math.PI*ph);
+    return [[shoulder[0]+0.10*swing, shoulder[1]-0.30],
+            [shoulder[0]+0.35*swing, shoulder[1]-0.50]];
+  }
+
+  // running — side view: faster gait, higher knee lift, pumping arms, no weights
+  function poseRun(ph){
+    const near=legAt(ph, 0.55, 0.24), far=legAt((ph+0.5)%1, 0.55, 0.24);
+    const bob=-0.05*Math.sin(4*Math.PI*ph);
+    const lean=0.18;
+    const hip=[0, 0.93+bob];
+    const nearAnkle=[near.x+0.02, near.y];
+    const farAnkle=[far.x-0.02, far.y];
+    const nearKnee=kneeIK(hip, nearAnkle);
+    const farKnee=kneeIK(hip, farAnkle);
+    const shoulder=shoulderAt(hip, lean);
+    const head=headAt(shoulder, lean);
+    const [nearElbow,nearHand]=runArm(ph, shoulder);
+    const [farElbow,farHand]=runArm((ph+0.5)%1, shoulder);
+    return {ankle:nearAnkle,knee:nearKnee,ankle2:farAnkle,knee2:farKnee,
+            hip,shoulder,head,elbow:nearElbow,hand:nearHand,elbow2:farElbow,hand2:farHand,
+            plate:null,equipment:'bodyweight',footAng:near.ang,footAng2:far.ang,
+            highlight:'legs', root:'standing'};
   }
 
   // cycling — stationary spin bike: seated, legs pedal a rotating crank, flywheel spins
@@ -528,6 +559,204 @@
                      chain:[hand,[0.46,0.30]]}};
   }
 
+  // swimming — front crawl, side view: horizontal body + flutter kick + windmill arms
+  function poseSwim(ph){
+    const t=2*Math.PI*ph, y=0.10;
+    const hip=[0, y];
+    const shoulder=[T, y];
+    const head=[T+HEAD*1.05, y];
+    // flutter kick: legs nearly straight, feet scissor up/down in opposite phase
+    const kick=0.10;
+    const a1=kick*Math.sin(t), a2=kick*Math.sin(t+Math.PI);
+    const nearAnkle=[-L1-L2, y+a1], nearKnee=[-L1, y+0.45*a1];
+    const farAnkle=[-L1-L2, y+a2], farKnee=[-L1, y+0.45*a2];
+    // front-crawl windmill arms, 180° out of phase
+    // hand path: forward -> down (pull) -> back (exit) -> up (recovery) -> forward
+    const R=UA+FA-0.03, cx=shoulder[0]+0.03;
+    const nearHand=[cx+R*Math.cos(t), shoulder[1]-R*Math.sin(t)];
+    const farHand=[cx+R*Math.cos(t+Math.PI), shoulder[1]-R*Math.sin(t+Math.PI)];
+    const nearElbow=elbowIK(shoulder, nearHand, true);
+    const farElbow=elbowIK(shoulder, farHand, true);
+    return {ankle:nearAnkle,knee:nearKnee,ankle2:farAnkle,knee2:farKnee,
+            hip,shoulder,head,elbow:nearElbow,hand:nearHand,elbow2:farElbow,hand2:farHand,
+            water:0.0, equipment:'bodyweight', highlight:'full', root:'floor', noGround:true};
+  }
+
+  // burpee — side view: squat-thrust → kick back to plank → return → jump
+  function poseBurpee(ph){
+    const stand={hip:[0.0,0.96], shoulder:[0.0,1.44], head:[0.0,1.58],
+                 hand:[0.04,0.76], elbow:[0.04,1.07], ankle:[0.0,0.04]};
+    const squat={hip:[-0.06,0.40], shoulder:[0.30,0.72], head:[0.39,0.82],
+                 hand:[0.40,0.05], elbow:[0.42,0.36], ankle:[0.02,0.04]};
+    const plank={hip:[0.119,0.488], shoulder:[0.554,0.69], head:[0.654,0.81],
+                 hand:[0.40,0.0], elbow:[0.47,0.32], ankle:[-0.716,0.04]};
+    const jump={hip:[0.0,0.92], shoulder:[0.0,1.40], head:[0.0,1.54],
+                hand:[0.0,2.09], elbow:[0.0,1.78], ankle:[0.0,0.32]};
+    const kfs=[[0.0,stand],[0.28,squat],[0.48,plank],[0.68,squat],[0.88,jump],[1.0,stand]];
+    let i=0;
+    while (i<kfs.length-2 && ph>=kfs[i+1][0]) i++;
+    const [p0,k0]=kfs[i], [p1,k1]=kfs[i+1];
+    const t=sstep(p0,p1,ph);
+    const hip=lerp(k0.hip,k1.hip,t);
+    const shoulder=lerp(k0.shoulder,k1.shoulder,t);
+    const head=lerp(k0.head,k1.head,t);
+    const hand=lerp(k0.hand,k1.hand,t);
+    const elbow=lerp(k0.elbow,k1.elbow,t);
+    const ankle=lerp(k0.ankle,k1.ankle,t);
+    const knee=kneeIK(hip,ankle);
+    return {ankle,knee,hip,shoulder,head,elbow,hand,plate:null,
+            equipment:'bodyweight', highlight:'full', root:'standing'};
+  }
+
+  // box jump — side view: squat load → jump onto the box → land → step down
+  function poseBoxJump(ph){
+    const stand={hip:[-0.30,0.96], shoulder:[-0.30,1.44], head:[-0.30,1.58],
+                 hand:[-0.26,0.76], elbow:[-0.26,1.07], ankle:[-0.30,0.04]};
+    const load={hip:[-0.34,0.46], shoulder:[-0.28,0.98], head:[-0.21,1.10],
+                hand:[-0.81,0.54], elbow:[-0.57,0.74], ankle:[-0.30,0.04]};
+    const launch={hip:[-0.22,0.85], shoulder:[-0.14,1.33], head:[-0.10,1.45],
+                  hand:[0.35,1.82], elbow:[0.13,1.60], ankle:[-0.18,0.12]};
+    const air={hip:[0.05,1.24], shoulder:[0.05,1.72], head:[0.05,1.86],
+               hand:[0.73,1.84], elbow:[0.42,1.79], ankle:[0.10,0.55]};
+    const land={hip:[0.33,0.80], shoulder:[0.38,1.28], head:[0.42,1.41],
+                hand:[1.03,1.05], elbow:[0.74,1.15], ankle:[0.35,0.32]};
+    const atop={hip:[0.35,1.24], shoulder:[0.35,1.72], head:[0.35,1.86],
+                hand:[0.39,1.04], elbow:[0.39,1.35], ankle:[0.35,0.32]};
+    const up=[[0.00,stand,'io'],[0.22,load,'io'],[0.40,launch,'out'],
+              [0.58,air,'out'],[0.72,land,'in'],[0.86,atop,'io']];
+    function sample(f){
+      f=Math.max(0,Math.min(1,f));
+      let p0=up[0][0], k0=up[0][1];
+      for (let i=1;i<up.length;i++){
+        const p1=up[i][0], k1=up[i][1], mode=up[i][2];
+        if (f<=p1){
+          const u=(f-p0)/(p1-p0);
+          const t=(mode==='out')?easeOut(u):(mode==='in')?easeIn(u):sstep(0,1,u);
+          return {hip:lerp(k0.hip,k1.hip,t), shoulder:lerp(k0.shoulder,k1.shoulder,t),
+                  head:lerp(k0.head,k1.head,t), hand:lerp(k0.hand,k1.hand,t),
+                  elbow:lerp(k0.elbow,k1.elbow,t), ankle:lerp(k0.ankle,k1.ankle,t)};
+        }
+        p0=p1; k0=k1;
+      }
+      return {hip:[...atop.hip], shoulder:[...atop.shoulder], head:[...atop.head],
+              hand:[...atop.hand], elbow:[...atop.elbow], ankle:[...atop.ankle]};
+    }
+    let pose;
+    if (ph<0.55){ pose=sample(ph/0.55); }
+    else if (ph<0.85){ pose=atop; }
+    else { pose=stand; }
+    const knee=kneeIK(pose.hip,pose.ankle);
+    return {ankle:pose.ankle,knee,hip:pose.hip,shoulder:pose.shoulder,head:pose.head,
+            elbow:pose.elbow,hand:pose.hand,plate:null,
+            equipment:'bodyweight', highlight:'legs', root:'standing', box:[0.05,0.70,0.32]};
+  }
+
+  // battle ropes — athletic hinge stance, two arms whip ropes in opposite phase
+  function poseBattleRopes(ph){
+    const t=2*Math.PI*ph;
+    const bob=0.03*Math.sin(t);
+    const hip=[-0.60,0.70+bob], ankle=[-0.60,0.04];
+    const knee=kneeIK(hip,ankle);
+    const shoulder=[-0.36,1.16+bob], head=[-0.30,1.28+bob];
+    const hy1=0.80+0.24*Math.sin(t), hy2=0.80+0.24*Math.sin(t+Math.PI);
+    const hand=[-0.02,hy1], hand2=[-0.08,hy2];
+    const elbow=elbowIK(shoulder,hand,false), elbow2=elbowIK(shoulder,hand2,false);
+    const anchor=[0.72,0.03];
+    return {ankle,knee,hip,shoulder,head,elbow,hand,elbow2,hand2,
+            ropes:[[anchor,hand],[anchor,hand2]],
+            plate:null, equipment:'bodyweight', highlight:'arms', root:'standing'};
+  }
+
+  // sled push — staggered low stance, arms drive a weighted sled forward
+  function poseSledPush(ph){
+    const d=osc(ph);
+    const hip=[-0.42,0.66], ankle=[-0.35,0.04];
+    const knee=kneeIK(hip,ankle);
+    const ankle2=[-0.06,0.04], knee2=kneeIK(hip,ankle2);
+    const shoulder=[-0.02+0.05*d, 1.00-0.03*d];
+    const head=[0.06+0.05*d, 1.12-0.03*d];
+    const hand=[0.45,0.82], hand2=[0.50,0.78];
+    const elbow=elbowIK(shoulder,hand,true), elbow2=elbowIK(shoulder,hand2,true);
+    return {ankle,knee,ankle2,knee2,hip,shoulder,head,elbow,hand,elbow2,hand2,
+            sled:[0.50,0.92], plate:null, equipment:'bodyweight',
+            highlight:'legs', root:'standing'};
+  }
+
+  // jump rope — front view: both feet hop together, a rope arc sweeps overhead
+  function poseJumpRope(ph){
+    const t=2*Math.PI*ph;
+    const hop=0.10*Math.max(0, -Math.sin(t));
+    const hip=[0, 0.90+hop];
+    const nearAnkle=[0.07, 0.04+hop], nearKnee=[0.07, 0.04+hop+L2];
+    const farAnkle=[-0.07, 0.04+hop], farKnee=[-0.07, 0.04+hop+L2];
+    const shoulder=[0, hip[1]+T];
+    const head=[0, shoulder[1]+HEAD*1.05];
+    const hand=[0.20, 0.70+hop], elbow=[0.16, 1.02+hop];
+    const hand2=[-0.20, 0.70+hop], elbow2=[-0.16, 1.02+hop];
+    const apex=0.75+1.0*Math.sin(t);
+    return {ankle:nearAnkle,knee:nearKnee,ankle2:farAnkle,knee2:farKnee,
+            hip,shoulder,head,elbow,hand,elbow2,hand2,
+            rope:[hand,hand2,apex], plate:null, equipment:'bodyweight',
+            highlight:'legs', root:'standing'};
+  }
+
+  function highKneeLeg(ph){
+    if (ph<0.5) return [0, 0.04];
+    const u=(ph-0.5)*2;
+    return [0, 0.04+0.40*Math.sin(Math.PI*u)];
+  }
+
+  // high knees — run on the spot, knees drive to hip height
+  function poseHighKnees(ph){
+    const nearAnkle=highKneeLeg(ph), farAnkle=highKneeLeg((ph+0.5)%1);
+    const bob=-0.05*Math.sin(4*Math.PI*ph), lean=0.10;
+    const hip=[0, 0.92+bob];
+    const nearKnee=kneeIK(hip,nearAnkle), farKnee=kneeIK(hip,farAnkle);
+    const shoulder=shoulderAt(hip,lean), head=headAt(shoulder,lean);
+    const [nearElbow,nearHand]=runArm(ph,shoulder);
+    const [farElbow,farHand]=runArm((ph+0.5)%1,shoulder);
+    return {ankle:nearAnkle,knee:nearKnee,ankle2:farAnkle,knee2:farKnee,
+            hip,shoulder,head,elbow:nearElbow,hand:nearHand,elbow2:farElbow,hand2:farHand,
+            plate:null,equipment:'bodyweight',highlight:'legs',root:'standing'};
+  }
+
+  // stair climber — static mid-stride pose on a 3-step staircase
+  // front foot on the 2nd step, back foot on the 1st step, torso leaning in,
+  // one arm forward / one back
+  function poseStairClimb(ph){
+    const stepH=0.22;
+    const bob=0.006*Math.sin(2*Math.PI*ph);   // imperceptible idle sway
+    const hip=[-0.20, 1.14+bob];
+    const nearAnkle=[-0.12, 2*stepH+0.02];    // front foot on the 2nd step
+    const farAnkle=[-0.34, stepH+0.02];       // back foot on the 1st step
+    const nearKnee=kneeIK(hip,nearAnkle), farKnee=kneeIK(hip,farAnkle);
+    const lean=0.14;                          // torso leans forward into the climb
+    const shoulder=shoulderAt(hip,lean), head=headAt(shoulder,lean);
+    const [nearElbow,nearHand]=runArm(0.25,shoulder);  // forward swing for balance
+    const [farElbow,farHand]=runArm(0.75,shoulder);    // back swing
+    return {ankle:nearAnkle,knee:nearKnee,ankle2:farAnkle,knee2:farKnee,
+            hip,shoulder,head,elbow:nearElbow,hand:nearHand,elbow2:farElbow,hand2:farHand,
+            stairs:[-0.34,3,stepH], plate:null, equipment:'bodyweight',
+            highlight:'legs', root:'standing', footAng:0.0, footAng2:-0.22};
+  }
+
+  // elliptical — feet trace a forward ellipse, arms push/pull the handles
+  function poseElliptical(ph){
+    const t=2*Math.PI*ph;
+    const hip=[0,0.95];
+    const p1=[0.10+0.28*Math.cos(t), 0.30-0.15*Math.sin(t)];
+    const p2=[0.10+0.28*Math.cos(t+Math.PI), 0.30-0.15*Math.sin(t+Math.PI)];
+    const nearKnee=kneeIK(hip,p1), farKnee=kneeIK(hip,p2);
+    const shoulder=[0, hip[1]+T], head=[0, shoulder[1]+HEAD*1.05];
+    const h1=[0.35+0.12*Math.cos(t+Math.PI), 1.12-0.05*Math.sin(t+Math.PI)];
+    const h2=[0.35+0.12*Math.cos(t), 1.12-0.05*Math.sin(t)];
+    const nearElbow=elbowIK(shoulder,h1,false), farElbow=elbowIK(shoulder,h2,false);
+    return {ankle:p1,knee:nearKnee,ankle2:p2,knee2:farKnee,
+            hip,shoulder,head,elbow:nearElbow,hand:h1,elbow2:farElbow,hand2:h2,
+            elliptical:{pivot:[0.52,0.98],pedal1:p1,pedal2:p2,hand1:h1,hand2:h2},
+            plate:null, equipment:'machine', highlight:'full', root:'standing'};
+  }
+
   const ARCHETYPES = [
     { id:'squat',    name:'Squat',             subtitle:'legs · barbell',       pose:poseSquat },
     { id:'hinge',    name:'Hinge (Deadlift)',  subtitle:'legs · barbell',       pose:poseHinge },
@@ -543,6 +772,7 @@
     { id:'plank',    name:'Plank',             subtitle:'core · hold',          pose:posePlank },
     { id:'lateral',  name:'Lateral Raise',     subtitle:'shoulders · dumbbell', pose:poseLateral },
     { id:'carry',    name:"Farmer's Carry",    subtitle:'full body · dumbbells',pose:poseCarry },
+    { id:'run',      name:'Running',           subtitle:'cardio · legs',         pose:poseRun },
     { id:'cycle',    name:'Cycling',           subtitle:'cardio · legs',         pose:poseCycle },
     { id:'calf',     name:'Calf Raise',        subtitle:'calves · bodyweight',   pose:poseCalf },
     { id:'crunch',   name:'Crunch',            subtitle:'core · bodyweight',     pose:poseCrunch },
@@ -553,6 +783,15 @@
     { id:'leg_curl', name:'Leg Curl',           subtitle:'hamstrings · machine',  pose:poseLegCurl },
     { id:'cable_row',name:'Seated Cable Row',   subtitle:'back · machine',        pose:poseCableRow },
     { id:'row_machine',name:'Rowing Machine',   subtitle:'cardio · full body',    pose:poseRowMachine },
+    { id:'swim',       name:'Swimming',         subtitle:'cardio · full body',    pose:poseSwim },
+    { id:'burpee',     name:'Burpee',           subtitle:'cardio · full body',    pose:poseBurpee },
+    { id:'box_jump',   name:'Box Jump',         subtitle:'cardio · legs',         pose:poseBoxJump },
+    { id:'battle_ropes',name:'Battle Ropes',     subtitle:'cardio · arms',         pose:poseBattleRopes },
+    { id:'sled_push',   name:'Sled Push',        subtitle:'cardio · legs',         pose:poseSledPush },
+    { id:'jump_rope',   name:'Jump Rope',        subtitle:'cardio · legs',         pose:poseJumpRope },
+    { id:'high_knees',  name:'High Knees',       subtitle:'cardio · legs',         pose:poseHighKnees },
+    { id:'stair_climb', name:'Stair Climber',    subtitle:'cardio · legs',         pose:poseStairClimb },
+    { id:'elliptical',  name:'Elliptical',       subtitle:'cardio · full body',    pose:poseElliptical },
   ];
 
   // ── renderer ────────────────────────────────────────────
@@ -700,7 +939,90 @@
     }
   }
 
-  function drawFigure(p){
+  function drawWater(y, t){
+    ctx.fillStyle='rgba(77,143,209,0.35)';
+    ctx.fillRect(X(-1.05), Y(y), 2.1*scale, 0.32*scale);
+    ctx.strokeStyle=rgb([0.40,0.66,0.90]);
+    ctx.lineWidth=2;
+    for (let i=0;i<20;i++){
+      const x0=-1.05+i*0.105, x1=x0+0.105;
+      const y0=y+0.022*Math.sin(i*0.9+t*3.0);
+      const y1=y+0.022*Math.sin((i+1)*0.9+t*3.0);
+      seg([x0,y0],[x1,y1],[0.40,0.66,0.90],2);
+    }
+  }
+
+  function drawRope(h1,h2,ay){
+    const color=[0.75,0.62,0.40];
+    let prev=null;
+    for (let i=0;i<17;i++){
+      const f=i/16;
+      const x=h1[0]+(h2[0]-h1[0])*f;
+      const y=h1[1]+(h2[1]-h1[1])*f + (ay-h1[1])*4*f*(1-f);
+      const pt=[x,y];
+      if (prev) seg(prev,pt,color,2);
+      prev=pt;
+    }
+  }
+
+  function drawStairs(s){
+    const [x0,n,stepH]=s, w=0.20;
+    for (let k=0;k<n;k++){
+      const x=x0+k*w, yTop=(k+1)*stepH;
+      ctx.fillStyle='rgba(77,77,92,1)';
+      ctx.fillRect(X(x), Y(yTop), w*scale, yTop*scale);   // solid step column to the floor
+      seg([x,yTop],[x+w,yTop],[0.42,0.42,0.48],1.5);     // tread top
+      seg([x+w,yTop],[x+w,k*stepH],[0.34,0.34,0.40],1.5); // riser edge
+    }
+  }
+
+  function drawElliptical(m){
+    ctx.fillStyle='rgba(82,82,97,1)';
+    ctx.fillRect(X(-0.45), Y(0.10), 0.90*scale, 0.10*scale);
+    seg([0.52,0.10],[0.52,0.98],[0.55,0.58,0.66],4);
+    ctx.strokeStyle='rgba(115,120,140,1)'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(X(0.52),Y(0.60),0.14*scale,0,Math.PI*2); ctx.stroke();
+    for (const hk of ['hand1','hand2']) seg(m.pivot, m[hk], [0.55,0.58,0.66], 3);
+    for (const pk of ['pedal1','pedal2']){
+      const [px,py]=m[pk];
+      seg([px-0.07,py],[px+0.07,py],[0.85,0.85,0.90],4);
+    }
+  }
+
+  function drawSled(s){
+    const [x0,x1]=s, top=0.12;
+    ctx.fillStyle='rgba(82,77,87,1)';
+    ctx.fillRect(X(x0), Y(top), (x1-x0)*scale, top*scale);
+    ctx.fillStyle='rgba(140,77,89,1)';
+    ctx.fillRect(X(x0+0.08), Y(0.42), 0.10*scale, 0.30*scale);
+    ctx.fillRect(X(x0+0.26), Y(0.42), 0.10*scale, 0.30*scale);
+    seg([x0,0.10],[x0-0.02,0.80],[0.55,0.58,0.66],3);
+    seg([x0+0.08,0.10],[x0+0.06,0.80],[0.55,0.58,0.66],3);
+    seg([x0-0.02,0.80],[x0+0.06,0.80],[0.55,0.58,0.66],3);
+  }
+
+  function drawRopes(ropes, t){
+    const color=[0.62,0.40,0.28];
+    const anchor=ropes[0][0];
+    seg([anchor[0],0.0],[anchor[0],0.09],[0.55,0.58,0.66],3);
+    for (const [a,hand] of ropes){
+      const [ax,ay]=a, [hx,hy]=hand;
+      const dx=hx-ax, dy=hy-ay;
+      const L=Math.hypot(dx,dy)||1;
+      const px=-dy/L, py=dx/L;
+      let prev=null;
+      for (let i=0;i<15;i++){
+        const f=i/14;
+        const x=ax+dx*f, y=ay+dy*f;
+        const amp=0.05*Math.sin(f*Math.PI*2 + t*9)*Math.sin(f*Math.PI);
+        const pt=[x+px*amp, y+py*amp];
+        if (prev) seg(prev, pt, color, 2);
+        prev=pt;
+      }
+    }
+  }
+
+  function drawFigure(p, t){
     if (p.topView){ drawFlyTop(p); return; }
     const h=p.highlight;
     const legC=(h==='legs'||h==='full')?NEON:DIM;
@@ -711,6 +1033,16 @@
     if (!p.noGround){
       ctx.strokeStyle='rgba(77,77,89,1)'; ctx.lineWidth=1;
       ctx.beginPath(); ctx.moveTo(X(-0.9),Y(0)); ctx.lineTo(X(0.9),Y(0)); ctx.stroke();
+    }
+    if (p.stairs) drawStairs(p.stairs);
+    if (p.water!==undefined){
+      drawWater(p.water, t||0);
+    }
+    if (p.box){
+      const [bx0,bx1,btop]=p.box;
+      ctx.fillStyle='rgba(87,74,66,1)';
+      ctx.fillRect(X(bx0), Y(btop), (bx1-bx0)*scale, btop*scale);
+      seg([bx0,btop],[bx1,btop],[0.46,0.40,0.36],2);
     }
     if (p.root==='lying'){                       // bench under the body
       ctx.fillStyle='rgba(60,60,70,1)';
@@ -743,6 +1075,10 @@
       seg([p.pullBar[1][0],p.pullBar[1][1]],[p.pullBar[1][0],p.pullBar[1][1]-0.20],STEEL,2.5);
       seg(p.pullBar[0],p.pullBar[1],STEEL,3);
     }
+    if (p.ropes) drawRopes(p.ropes, t||0);
+    if (p.sled) drawSled(p.sled);
+    if (p.rope) drawRope(p.rope[0], p.rope[1], p.rope[2]);
+    if (p.elliptical) drawElliptical(p.elliptical);
 
     // legs
     if (legC===NEON){
@@ -839,7 +1175,7 @@
   function frame(now){
     const t=(now-start)/1000;
     const a=ARCHETYPES.find(x=>x.id===current);
-    const CYCLES={plank:3.0, carry:1.0, cycle:1.2};
+    const CYCLES={plank:3.0, carry:1.0, run:0.8, cycle:1.2, swim:1.2, burpee:2.4, box_jump:4.0, battle_ropes:1.2, sled_push:1.6, jump_rope:0.8, high_knees:0.9, stair_climb:3.0, elliptical:1.4};
     const cycle=CYCLES[a.id]||2.6;
     const ph=(t%cycle)/cycle;
     const p=a.pose(ph);
@@ -847,9 +1183,9 @@
     ctx.clearRect(0,0,W,H);
     scale=H*0.92/2.05;
     gy=H*0.94;
-    if (a.id==='carry'){
-      // walk left→right across the screen, wrapping off the right edge back to the left
-      const stride=0.40, figHalf=0.6*scale, span=W+2*figHalf;
+    if (a.id==='carry'||a.id==='run'){
+      // walk/run left→right across the screen, wrapping off the right edge back to the left
+      const stride=(a.id==='run')?0.55:0.40, figHalf=0.6*scale, span=W+2*figHalf;
       const distPx=(2*stride*(t/cycle))*scale;
       cx=-figHalf + (distPx % span);
       p.noGround=true;
@@ -858,7 +1194,7 @@
     } else {
       cx=W/2;
     }
-    drawFigure(p);
+    drawFigure(p, t);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
