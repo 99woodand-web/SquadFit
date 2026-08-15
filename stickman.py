@@ -10,7 +10,6 @@ import math
 from kivy.uix.widget import Widget
 from kivy.clock import Clock
 from kivy.graphics import Color, Rectangle, Line, Ellipse
-from kivy.metrics import dp
 
 # ── figure model (units; standing height ≈ 1.48 + head) ─────────────
 T    = 0.48   # torso length (hip -> shoulder)
@@ -19,6 +18,8 @@ L2   = 0.46   # shin length
 HEAD = 0.13   # head radius
 UA   = 0.38   # upper arm length
 FA   = 0.31   # forearm length
+
+_REF_SCALE = 188.0   # px-per-unit of the HTML preview (reference for line widths)
 
 NEON   = (0.75, 1.00, 0.15)   # working-muscle highlight
 DIM    = (0.45, 0.48, 0.55)   # everything else
@@ -734,7 +735,7 @@ def archetype_for(name='', equip='', muscle=''):
 class StickmanWidget(Widget):
     """Renders and animates a single stick-figure archetype."""
 
-    def __init__(self, archetype='squat', animate=True, **kwargs):
+    def __init__(self, archetype='squat', animate=True, fps=40, **kwargs):
         super().__init__(**kwargs)
         self._archetype = archetype
         self._animate = animate
@@ -745,7 +746,7 @@ class StickmanWidget(Widget):
         self._gy = 0.0
         self.bind(pos=self._redraw, size=self._redraw)
         if animate:
-            Clock.schedule_interval(self._tick, 1.0 / 40.0)
+            Clock.schedule_interval(self._tick, 1.0 / fps)
 
     def set_archetype(self, archetype):
         self._archetype = archetype
@@ -801,11 +802,15 @@ class StickmanWidget(Widget):
     def _Y(self, y):
         return self._gy + y * self._scale
 
+    def _w(self, w):
+        """Design-pixel width (as in the HTML preview) scaled to this widget."""
+        return w * self._scale / _REF_SCALE
+
     # ── primitives (emit into the active canvas) ──
     def _seg(self, a, b, color, width):
         Color(*color)
         Line(points=[self._X(a[0]), self._Y(a[1]), self._X(b[0]), self._Y(b[1])],
-             width=dp(width), cap='round', joint='round')
+             width=self._w(width), cap='round', joint='round')
 
     def _dot(self, pt, color, radius):
         Color(*color)
@@ -814,7 +819,7 @@ class StickmanWidget(Widget):
 
     def _circle(self, pt, color, radius, width):
         Color(*color)
-        Line(circle=(self._X(pt[0]), self._Y(pt[1]), radius), width=dp(width))
+        Line(circle=(self._X(pt[0]), self._Y(pt[1]), radius), width=self._w(width))
 
     def _fill_rect(self, x, y_top, w, h, color):
         Color(*color)
@@ -901,7 +906,7 @@ class StickmanWidget(Widget):
             x = side * 0.05
             self._seg((x, 0.16), (x, 0.60), leg_c, 6)
             self._seg((x, 0.60), (0.0, 1.05), leg_c, 6)
-            self._dot((x, 0.60), leg_c, dp(4))
+            self._dot((x, 0.60), leg_c, self._w(4))
 
         # torso + shoulder girdle
         if tor_c == NEON:
@@ -916,7 +921,7 @@ class StickmanWidget(Widget):
         for ekey, hkey in (('elbow', 'hand'), ('elbow2', 'hand2')):
             self._seg(p['shoulder'], p[ekey], arm_c, 6)
             self._seg(p[ekey], p[hkey], arm_c, 6)
-            self._dot(p[ekey], arm_c, dp(3))
+            self._dot(p[ekey], arm_c, self._w(3))
 
         # dumbbells (top-down: short handle + a plate on each end)
         for hkey in ('hand', 'hand2'):
@@ -1005,7 +1010,7 @@ class StickmanWidget(Widget):
                 # handle on top (upper semicircle)
                 Color(*BAR)
                 Line(ellipse=(self._X(p['plate'][0]) - pr * 0.55, self._Y(p['plate'][1]) - pr * 0.55,
-                              2 * pr * 0.55, 2 * pr * 0.55, 180, 360), width=dp(1.5))
+                              2 * pr * 0.55, 2 * pr * 0.55, 180, 360), width=self._w(1.5))
             else:
                 self._dot(p['plate'], BAR, 0.035 * self._scale)
         if p.get('plate2'):
@@ -1027,11 +1032,11 @@ class StickmanWidget(Widget):
             self._seg(p['anchor'], p['hand'], BAND + (0.8,), 2)
 
         # joints
-        self._dot(p['hip'], leg_c, dp(5))
-        self._dot(p['knee'], leg_c, dp(5))
+        self._dot(p['hip'], leg_c, self._w(5))
+        self._dot(p['knee'], leg_c, self._w(5))
         if p.get('knee2') is not None and p.get('ankle2') is not None:
-            self._dot(p['knee2'], _dim(leg_c), dp(4))
-        self._dot(p['shoulder'], tor_c, dp(4))
-        self._dot(p['elbow'], arm_c, dp(3.5))
+            self._dot(p['knee2'], _dim(leg_c), self._w(4))
+        self._dot(p['shoulder'], tor_c, self._w(4))
+        self._dot(p['elbow'], arm_c, self._w(3.5))
         if p.get('elbow2') is not None and p.get('hand2') is not None:
-            self._dot(p['elbow2'], _dim(arm_c), dp(3))
+            self._dot(p['elbow2'], _dim(arm_c), self._w(3))
